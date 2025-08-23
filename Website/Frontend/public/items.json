@@ -1,0 +1,34 @@
+[
+    {
+      "id": 1,
+      "name": "Diamond Sword",
+      "description": "Une épée légendaire forgée avec les diamants les plus purs. Dégâts énormes garantis !",
+      "price": 150,
+      "rarity": "legendary",
+      "image": "https://static.wikia.nocookie.net/minecraft_gamepedia/images/e/e7/Diamond_Sword_JE3_BE3.png"
+    },
+    {
+      "id": 2,
+      "name": "Iron Pickaxe",
+      "description": "L'outil essentiel de tout mineur. Résistante et efficace pour tous vos projets.",
+      "price": 45,
+      "rarity": "common",
+      "image": "https://static.wikia.nocookie.net/minecraft_gamepedia/images/d/d4/Iron_Pickaxe_JE3_BE2.png"
+    },
+    {
+      "id": 3,
+      "name": "Golden Apple",
+      "description": "Pomme dorée aux propriétés magiques. Restaure la santé et donne des effets spéciaux.",
+      "price": 85,
+      "rarity": "rare",
+      "image": "https://static.wikia.nocookie.net/minecraft_gamepedia/images/7/74/Golden_Apple_JE2_BE2.png"
+    },
+    {
+      "id": 4,
+      "name": "Ender Pearl",
+      "description": "Perle mystique permettant la téléportation instantanée. Parfaite pour les évasions rapides.",
+      "price": 35,
+      "rarity": "uncommon",
+      "image": "https://static.wikia.nocookie.net/minecraft_gamepedia/images/f/f6/Ender_Pearl_JE3_BE2.png"
+    }
+  ]
