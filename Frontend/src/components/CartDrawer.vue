@@ -264,7 +264,7 @@ export default {
       this.isOrdering = true
 
       try {
-        const response = await fetch('http://localhost:3001/api/order', {
+        const response = await fetch('https://limeazone.onrender.com/api/order', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
