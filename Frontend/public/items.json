@@ -222,5 +222,54 @@
     "price": 1,
     "rarity": "Consommables",
     "id": 1756069820569
+  },
+  {
+    "name": "laine",
+    "description": "x",
+    "price": 3,
+    "rarity": "Autres",
+    "id": 1756079234504
+  },
+  {
+    "name": "livre enchant",
+    "description": "x",
+    "price": 500,
+    "rarity": "Autres",
+    "id": 1756079288052
+  },
+  {
+    "name": "colorants",
+    "description": "x",
+    "price": 1,
+    "rarity": "Autres",
+    "id": 1756079307717
+  },
+  {
+    "name": "blaze rod",
+    "description": "x",
+    "price": 10,
+    "rarity": "Autres",
+    "id": 1756079325056
+  },
+  {
+    "name": "glace",
+    "description": "x",
+    "price": 2,
+    "rarity": "Autres",
+    "id": 1756079336160
+  },
+  {
+    "name": "verrue du nether",
+    "description": "x",
+    "price": 3,
+    "rarity": "Autres",
+    "id": 1756079350612
+  },
+  {
+    "name": "stuff lunaire complet",
+    "description": "1x casque lunaire - 1x équipement oxygen - 1x module de fréquence - 2x grosses bombonnes oxygen ",
+    "price": 1500,
+    "rarity": "Solaire",
+    "id": 1756079519105
   }
 ]
