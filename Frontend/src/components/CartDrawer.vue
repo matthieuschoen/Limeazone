@@ -6,7 +6,6 @@
     width="420"
     class="minecraft-cart"
   >
-    <!-- Header harmonisé -->
     <v-toolbar class="cart-header" elevation="0">
       <div class="header-background"></div>
       <v-toolbar-title class="cart-title minecraft-font">
@@ -18,7 +17,6 @@
       </v-btn>
     </v-toolbar>
 
-    <!-- Liste des items -->
     <v-list v-if="cartItems.length > 0" class="items-list pa-0">
       <v-list-item
         v-for="item in cartItems"
@@ -42,7 +40,7 @@
           </v-list-item-title>
           
           <v-list-item-subtitle class="item-details mb-2">
-            💰 {{ item.price }} $ × {{ item.quantity }}
+            💰 {{ item.price }} coins × {{ item.quantity }}
             <br>
             <strong class="subtotal">Sous-total: {{ item.price * item.quantity }} coins</strong>
           </v-list-item-subtitle>
@@ -81,21 +79,19 @@
       </v-list-item>
     </v-list>
 
-    <!-- État vide -->
-    <v-container v-else class="empty-cart text-center pa-8">
+    <v-container v-else class="text-center pa-8">
       <v-icon size="80" class="empty-icon">mdi-cart-outline</v-icon>
       <p class="text-h6 mt-4 minecraft-font empty-title">Panier vide</p>
       <p class="text-body-2 empty-subtitle">Ajoutez des items pour commencer !</p>
     </v-container>
 
-    <!-- Footer avec total et commande -->
     <template v-if="cartItems.length > 0">
       <div class="cart-divider"></div>
       
       <v-card-text class="cart-footer text-center pa-6">
         <div class="total-container">
           <div class="total-amount minecraft-font mb-4">
-            TOTAL: 💰 {{ totalPrice }} $
+            TOTAL: 💰 {{ totalPrice }} coins
           </div>
           <div class="total-items text-body-2 mb-4">
             {{ totalItems }} article(s) au total
@@ -128,6 +124,20 @@
             Entrez votre pseudo Discord pour que nous puissions vous contacter :
           </p>
           
+          <!-- Message d'avertissement -->
+          <v-alert
+            type="warning"
+            variant="outlined"
+            class="mb-4"
+            icon="mdi-clock-alert"
+          >
+            <div class="alert-content">
+              <strong>⏳ Temps de traitement :</strong><br>
+              La commande peut prendre quelques secondes (15 max) à se produire.<br>
+              <strong>Ne fermez surtout pas la page avant le message de confirmation !</strong>
+            </div>
+          </v-alert>
+          
           <v-text-field
             v-model="discordUsername"
             label="Pseudo Discord"
@@ -151,7 +161,7 @@
             <v-card-text class="summary-content">
               <div v-for="item in cartItems" :key="item.id" class="summary-item d-flex justify-space-between mb-1">
                 <span>{{ item.name }} × {{ item.quantity }}</span>
-                <span class="summary-price">{{ item.price * item.quantity }} $</span>
+                <span class="summary-price">{{ item.price * item.quantity }} coins</span>
               </div>
             </v-card-text>
           </v-card>
@@ -254,7 +264,7 @@ export default {
       this.isOrdering = true
 
       try {
-        const response = await fetch('https://limeazone.onrender.com/api/order', {
+        const response = await fetch('http://localhost:3001/api/order', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -509,6 +519,23 @@ export default {
 
 .modal-description {
   color: #aaaaaa;
+}
+
+/* Alert personnalisé */
+.v-alert {
+  background: rgba(255, 193, 7, 0.1) !important;
+  border: 2px solid rgba(255, 193, 7, 0.6) !important;
+  border-radius: 10px;
+}
+
+.alert-content {
+  color: #ffffff;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.alert-content strong {
+  color: #FFC107;
 }
 
 .modal-info {
