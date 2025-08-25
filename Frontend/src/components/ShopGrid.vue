@@ -136,12 +136,13 @@
 <script>
 import ItemCard from './ItemCard.vue'
 import AdminPanel from './CadrePanel.vue'
+import ModernAdminPanel from './ModernAdminPanel.vue'
 
 export default {
   name: 'ShopGrid',
   components: {
     ItemCard,
-    AdminPanel
+    AdminPanel: ModernAdminPanel // Utiliser le nouveau panneau moderne
   },
   emits: ['add-to-cart'],
   data() {
