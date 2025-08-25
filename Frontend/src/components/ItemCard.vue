@@ -1,27 +1,12 @@
 <template>
-  <v-card
-    class="minecraft-card"
-    elevation="8"
-    hover
-    @click="addToCart"
-  >
+  <v-card class="minecraft-card" elevation="8" hover @click="addToCart">
     <div class="card-header">
-      <v-chip
-        v-if="item.rarity"
-        :color="getRarityColor(item.rarity)"
-        class="rarity-chip"
-        size="small"
-      >
+      <v-chip v-if="item.rarity" :color="getRarityColor(item.rarity)" class="rarity-chip" size="small">
         {{ getRarityIcon(item.rarity) }} {{ item.rarity.toUpperCase() }}
       </v-chip>
     </div>
 
-    <v-img
-      :src="item.image || defaultImage"
-      height="180"
-      contain
-      class="item-image"
-    >
+    <v-img :src="item.image || defaultImage" height="180" contain class="item-image">
     </v-img>
 
     <v-card-title class="item-title minecraft-font text-center">
@@ -32,27 +17,16 @@
       <div class="item-description text-body-2 mb-3">
         {{ item.description }}
       </div>
-      
+
       <div class="d-flex justify-center">
-        <v-chip
-          color="accent"
-          class="price-chip minecraft-font"
-          size="large"
-        >
+        <v-chip color="accent" class="price-chip minecraft-font" size="large">
           💰 {{ item.price }} $/u
         </v-chip>
       </div>
     </v-card-text>
 
     <v-card-actions class="pa-4">
-      <v-btn
-        color="success"
-        variant="elevated"
-        block
-        size="large"
-        @click="addToCart"
-        class="add-btn minecraft-font"
-      >
+      <v-btn color="success" variant="elevated" block size="large" @click="addToCart" class="add-btn minecraft-font">
         🛒 AJOUTER AU PANIER
       </v-btn>
     </v-card-actions>
@@ -66,31 +40,17 @@
           🛒 Choisir la quantité
         </v-card-title>
       </div>
-      
+
       <v-card-text class="dialog-content text-center pa-6">
         <div class="item-preview mb-4">
-          <v-img
-            :src="item.image || defaultImage"
-            height="80"
-            width="80"
-            class="preview-image mx-auto mb-2"
-          ></v-img>
+          <v-img :src="item.image || defaultImage" height="80" width="80" class="preview-image mx-auto mb-2"></v-img>
           <div class="preview-name minecraft-font">{{ item.name }}</div>
           <div class="preview-price">💰 {{ item.price }} coins chacun</div>
         </div>
 
-        <v-text-field
-          v-model.number="selectedQuantity"
-          label="Quantité"
-          type="number"
-          min="1"
-          max="99"
-          variant="outlined"
-          class="quantity-field mx-auto"
-          hide-details
-          @keyup.enter="confirmAddToCart"
-          @keyup.escape="cancelQuantity"
-        ></v-text-field>
+        <v-text-field v-model.number="selectedQuantity" label="Quantité" type="number" min="1" max="99"
+          variant="outlined" class="quantity-field mx-auto" hide-details @keyup.enter="confirmAddToCart"
+          @keyup.escape="cancelQuantity"></v-text-field>
 
         <div class="total-preview mt-4 text-h6">
           <span class="total-label">Total: </span>
@@ -99,21 +59,11 @@
       </v-card-text>
 
       <v-card-actions class="dialog-actions pa-4">
-        <v-btn
-          color="grey"
-          variant="outlined"
-          @click="cancelQuantity"
-          class="cancel-btn"
-        >
+        <v-btn color="grey" variant="outlined" @click="cancelQuantity" class="cancel-btn">
           Annuler
         </v-btn>
         <v-spacer></v-spacer>
-        <v-btn
-          color="success"
-          variant="elevated"
-          @click="confirmAddToCart"
-          class="confirm-btn minecraft-font"
-        >
+        <v-btn color="success" variant="elevated" @click="confirmAddToCart" class="confirm-btn minecraft-font">
           ✅ Confirmer
         </v-btn>
       </v-card-actions>
@@ -152,7 +102,11 @@ export default {
         Rouages: 'orange',
         Edora: 'red',
         Autres: 'cyan',
-        Consommables: 'lime'
+        Consommables: 'lime',
+        Alchimie: 'pink',        // ← Nouveau
+        Minerais: 'brown',       // ← Nouveau
+        Livres: 'indigo',        // ← Nouveau
+        Missiles: 'deep-orange'  // ← Nouveau
       }
       return colors[rarity?.toLowerCase()] || 'grey'
     },
@@ -396,16 +350,16 @@ export default {
   .minecraft-card {
     border-width: 2px;
   }
-  
+
   .item-title {
     font-size: 10px !important;
     padding: 12px;
   }
-  
+
   .add-btn {
     font-size: 9px !important;
   }
-  
+
   .minecraft-font {
     font-size: 10px !important;
   }

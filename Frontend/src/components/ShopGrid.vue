@@ -166,7 +166,11 @@ export default {
         { label: 'Rouages', value: 'Rouages', color: 'orange', icon: '🟠' },
         { label: 'Edora', value: 'Edora', color: 'red', icon: '🔴' },
         { label: 'Autres', value: 'Autres', color: 'cyan', icon: '🔵' },
-        { label: 'Consommables', value: 'Consommables', color: 'lime', icon: '🟢' }
+        { label: 'Consommables', value: 'Consommables', color: 'lime', icon: '🟢' },
+        { label: 'Alchimie', value: 'Alchimie', color: 'pink', icon: '🧪' },        // ← Nouveau
+        { label: 'Minerais', value: 'Minerais', color: 'brown', icon: '⛏️' },      // ← Nouveau
+        { label: 'Livres', value: 'Livres', color: 'indigo', icon: '📚' },         // ← Nouveau
+        { label: 'Missiles', value: 'Missiles', color: 'deep-orange', icon: '🚀' }  // ← Nouveau
       ]
     }
   },
