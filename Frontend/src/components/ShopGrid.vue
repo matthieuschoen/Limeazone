@@ -233,7 +233,7 @@ export default {
 
     async loadItems() {
       try {
-        const response = await fetch('/items.json')
+        const response = await fetch('https://raw.githubusercontent.com/matthieuschoen/limeazone-data/main/items.json')
         const publicItems = await response.json()
         const localItems = JSON.parse(localStorage.getItem('minecraft-shop-items') || '[]')
         this.items = this.mergeItems(publicItems, localItems)
