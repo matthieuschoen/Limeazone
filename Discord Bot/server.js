@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { createOrder } = require('./webhook-handler');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
 // Démarrer le bot Discord
@@ -53,7 +54,6 @@ app.post('/api/order', async (req, res) => {
 
 async function simpleKeepAlive() {
     try {
-        // Faire un ping HTTP vers soi-même
         const response = await fetch(`https://limeazone.onrender.com/`);
         console.log(`🌐 Keep-alive HTTP: ${response.status} - ${new Date().toLocaleTimeString()}`);
     } catch (error) {
@@ -61,11 +61,11 @@ async function simpleKeepAlive() {
     }
 }
 
-setInterval(simpleKeepAlive, 1 * 60 * 1000); // 5 minutes
+setInterval(simpleKeepAlive, 1 * 60 * 1000);
 
 app.listen(PORT, () => {
     console.log(`🌐 Serveur webhook démarré sur le port ${PORT}`);
     console.log(`📡 Endpoint: http://localhost:${PORT}/api/order`);
-    console.log(`🔄 Keep-alive HTTP activé: toutes les 5 minutes`);
+    console.log(`🔄 Keep-alive HTTP activé: toutes les 1 minutes`);
     simpleKeepAlive();
 });
