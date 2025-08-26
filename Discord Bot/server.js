@@ -51,7 +51,21 @@ app.post('/api/order', async (req, res) => {
     }
 });
 
+async function simpleKeepAlive() {
+    try {
+        // Faire un ping HTTP vers soi-même
+        const response = await fetch(`https://limeazone.onrender.com/`);
+        console.log(`🌐 Keep-alive HTTP: ${response.status} - ${new Date().toLocaleTimeString()}`);
+    } catch (error) {
+        console.log(`⚠️ Keep-alive HTTP échoué: ${error.message}`);
+    }
+}
+
+setInterval(simpleKeepAlive, 1 * 60 * 1000); // 5 minutes
+
 app.listen(PORT, () => {
     console.log(`🌐 Serveur webhook démarré sur le port ${PORT}`);
     console.log(`📡 Endpoint: http://localhost:${PORT}/api/order`);
+    console.log(`🔄 Keep-alive HTTP activé: toutes les 5 minutes`);
+    simpleKeepAlive();
 });
