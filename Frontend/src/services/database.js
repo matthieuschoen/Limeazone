@@ -1,14 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Variables d'environnement Vite
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fngewrukuslstsffysxr.supabase.co'
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuZ2V3cnVrdXNsc3RzZmZ5c3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMTQyNzksImV4cCI6MjA3MVc5MDI3OX0.MeHCZ8wI22aYS7bzO-l8NqCnBJ96feHt1'
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Service pour gérer les items
 export const itemsService = {
-  // Récupérer tous les items
   async getAll() {
     try {
       const { data, error } = await supabase
@@ -18,7 +17,6 @@ export const itemsService = {
       
       if (error) throw error
       
-      // Transformer pour compatibilité avec le code existant
       return data.map(item => ({
         id: item.id,
         name: item.name,
@@ -33,7 +31,6 @@ export const itemsService = {
     }
   },
 
-  // Ajouter un item
   async create(item) {
     try {
       const { data, error } = await supabase
@@ -55,7 +52,6 @@ export const itemsService = {
     }
   },
 
-  // Modifier un item
   async update(id, updates) {
     try {
       const { data, error } = await supabase
@@ -78,7 +74,6 @@ export const itemsService = {
     }
   },
 
-  // Supprimer un item
   async delete(id) {
     try {
       const { error } = await supabase
@@ -94,13 +89,12 @@ export const itemsService = {
     }
   },
 
-  // Migrer depuis JSON vers Supabase
   async migrateFromJson(jsonItems) {
     try {
       const itemsToInsert = jsonItems.map(item => ({
         name: item.name,
         description: item.description || '',
-        price: item.price,
+        price: Math.round(parseFloat(item.price) || 0),
         rarity: item.rarity,
         image_url: item.image || ''
       }))
@@ -122,7 +116,6 @@ export const itemsService = {
 
 // Service pour gérer les catégories
 export const categoriesService = {
-  // Récupérer toutes les catégories
   async getAll() {
     try {
       const { data, error } = await supabase
@@ -138,7 +131,6 @@ export const categoriesService = {
     }
   },
 
-  // Créer une nouvelle catégorie
   async create(category) {
     try {
       const { data, error } = await supabase
@@ -158,28 +150,6 @@ export const categoriesService = {
     }
   },
 
-  // Modifier une catégorie
-  async update(id, updates) {
-    try {
-      const { data, error } = await supabase
-        .from('categories')
-        .update({
-          name: updates.name,
-          color: updates.color,
-          icon: updates.icon
-        })
-        .eq('id', id)
-        .select()
-      
-      if (error) throw error
-      return data[0]
-    } catch (error) {
-      console.error('❌ Erreur modification catégorie:', error)
-      throw error
-    }
-  },
-
-  // Supprimer une catégorie
   async delete(id) {
     try {
       const { error } = await supabase
@@ -192,6 +162,48 @@ export const categoriesService = {
     } catch (error) {
       console.error('❌ Erreur suppression catégorie:', error)
       throw error
+    }
+  }
+}
+
+// Service pour la configuration du site
+export const configService = {
+  async get(key) {
+    try {
+      const { data, error } = await supabase
+        .from('site_config')
+        .select('value')
+        .eq('key', key)
+        .single()
+      
+      if (error) throw error
+      return data.value
+    } catch (error) {
+      console.error(`❌ Erreur récupération config ${key}:`, error)
+      throw error
+    }
+  },
+
+  async getAvailableColors() {
+    try {
+      return await this.get('available_colors')
+    } catch (error) {
+      // Fallback en cas d'erreur
+      return [
+        { title: 'Gris', value: 'grey' },
+        { title: 'Vert', value: 'green' },
+        { title: 'Bleu', value: 'blue' },
+        { title: 'Violet', value: 'purple' }
+      ]
+    }
+  },
+
+  async getAvailableIcons() {
+    try {
+      return await this.get('available_icons')
+    } catch (error) {
+      // Fallback en cas d'erreur
+      return ['⚪', '🟢', '🔵', '🟣', '🟠', '🔴', '🟡', '⚫']
     }
   }
 }

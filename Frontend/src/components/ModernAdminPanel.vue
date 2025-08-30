@@ -25,234 +25,236 @@
       </v-tabs>
 
       <v-card-text class="panel-content pa-0">
-        <!-- Tab Migration -->
-        <v-tab-item value="migration" v-show="activeTab === 'migration'">
-          <div class="migration-container pa-6">
-            <h3 class="minecraft-font mb-4">🔄 Migration GitHub → Supabase</h3>
-            
-            <!-- Étape 1: Charger depuis GitHub -->
-            <v-card class="step-card mb-4">
-              <v-card-title>📥 Étape 1: Charger depuis GitHub</v-card-title>
-              <v-card-text>
-                <p class="mb-4">Chargez vos items existants depuis votre fichier GitHub JSON.</p>
-                <v-btn 
-                  color="primary" 
-                  @click="loadFromGitHub" 
-                  :loading="loadingFromGitHub"
-                  prepend-icon="mdi-download"
-                  class="mr-3"
-                >
-                  📥 Charger depuis GitHub
-                </v-btn>
-                <v-chip v-if="githubItems.length > 0" color="success">
-                  ✅ {{ githubItems.length }} items chargés
-                </v-chip>
-              </v-card-text>
-            </v-card>
-
-            <!-- Étape 2: Migrer vers Supabase -->
-            <v-card class="step-card mb-4" :disabled="!githubItems.length">
-              <v-card-title>🚀 Étape 2: Migrer vers Supabase</v-card-title>
-              <v-card-text>
-                <p class="mb-4">Transférez vos items vers la base de données Supabase.</p>
-                <v-btn 
-                  color="success" 
-                  @click="migrateToSupabase" 
-                  :loading="migrating"
-                  :disabled="!githubItems.length"
-                  prepend-icon="mdi-database-import"
-                  class="mr-3"
-                >
-                  🚀 Migrer vers Supabase ({{ githubItems.length }} items)
-                </v-btn>
-                <v-chip v-if="migrationDone" color="success">
-                  ✅ Migration terminée
-                </v-chip>
-              </v-card-text>
-            </v-card>
-
-            <!-- Étape 3: Basculer le site -->
-            <v-card class="step-card" :disabled="!migrationDone">
-              <v-card-title>🔄 Étape 3: Basculer vers Supabase</v-card-title>
-              <v-card-text>
-                <p class="mb-4">Votre site utilisera maintenant Supabase au lieu de GitHub.</p>
-                <v-btn 
-                  color="warning" 
-                  @click="switchToSupabase" 
-                  :disabled="!migrationDone"
-                  prepend-icon="mdi-swap-horizontal"
-                >
-                  🔄 Basculer vers Supabase
-                </v-btn>
-              </v-card-text>
-            </v-card>
-
-            <!-- État actuel -->
-            <v-alert :type="currentSource === 'supabase' ? 'success' : 'info'" class="mt-4">
-              <strong>Source de données actuelle:</strong> 
-              {{ currentSource === 'supabase' ? '🗄️ Supabase (Base de données)' : '📁 GitHub (Fichier JSON)' }}
-            </v-alert>
-          </div>
-        </v-tab-item>
-
-        <!-- Tab Gestion Items -->
-        <v-tab-item value="items" v-show="activeTab === 'items'">
-          <div class="items-container pa-6">
-            <div class="d-flex justify-space-between align-center mb-4">
-              <h3 class="minecraft-font">📊 Gestion des Items</h3>
-              <div class="d-flex gap-2">
-                <v-btn color="info" @click="refreshItems" :loading="refreshing">
-                  🔄 Actualiser
-                </v-btn>
-                <v-btn color="success" @click="addNewItem" v-if="currentSource === 'supabase'">
-                  ➕ Nouveau Item
-                </v-btn>
-                <v-btn color="warning" @click="openCategoryDialog" v-if="currentSource === 'supabase'">
-                  🏷️ Nouvelle Catégorie
-                </v-btn>
-              </div>
-            </div>
-
-            <v-alert v-if="currentSource === 'github'" type="info" class="mb-4">
-              ℹ️ Mode GitHub: Pour modifier les items, utilisez le panel GitHub ou migrez vers Supabase.
-            </v-alert>
-
-            <v-data-table
-              :headers="itemHeaders"
-              :items="displayItems"
-              item-key="id"
-              class="modern-table"
-              :items-per-page="15"
-              :loading="refreshing"
-            >
-              <template v-slot:item.price="{ item }">
-                <v-chip color="success" size="small">💰 {{ item.price }}</v-chip>
-              </template>
-
-              <template v-slot:item.rarity="{ item }">
-                <v-chip :color="getCategoryColor(item.rarity)" size="small">
-                  {{ getCategoryIcon(item.rarity) }} {{ item.rarity }}
-                </v-chip>
-              </template>
-
-              <template v-slot:item.actions="{ item }" v-if="currentSource === 'supabase'">
-                <div class="action-buttons">
-                  <v-btn icon size="small" color="primary" @click="editItem(item)">
-                    <v-icon>mdi-pencil</v-icon>
-                  </v-btn>
-                  <v-btn icon size="small" color="error" @click="deleteItem(item.id)">
-                    <v-icon>mdi-delete</v-icon>
-                  </v-btn>
-                </div>
-              </template>
-            </v-data-table>
-          </div>
-        </v-tab-item>
-
-        <!-- Tab Catégories -->
-        <v-tab-item value="categories" v-show="activeTab === 'categories'">
-          <div class="categories-container pa-6">
-            <div class="d-flex justify-space-between align-center mb-4">
-              <h3 class="minecraft-font">🏷️ Gestion des Catégories</h3>
-              <v-btn color="success" @click="openCategoryDialog" v-if="currentSource === 'supabase'">
-                ➕ Nouvelle Catégorie
-              </v-btn>
-            </div>
-
-            <v-row>
-              <v-col v-for="category in categories" :key="category.id" cols="12" sm="6" md="4">
-                <v-card class="category-card">
-                  <v-card-text class="text-center">
-                    <v-chip :color="category.color" size="large" class="mb-3">
-                      <span class="text-h6">{{ category.icon }}</span>
-                      <span class="ml-2 font-weight-bold">{{ category.name }}</span>
-                    </v-chip>
-                    <div class="d-flex justify-center gap-2 mt-3">
-                      <v-btn 
-                        icon 
-                        size="small" 
-                        color="error" 
-                        @click="deleteCategory(category.id, category.name)"
-                        v-if="!isDefaultCategory(category.name)"
-                      >
-                        <v-icon>mdi-delete</v-icon>
-                      </v-btn>
-                    </div>
-                  </v-card-text>
-                </v-card>
-              </v-col>
-            </v-row>
-          </div>
-        </v-tab-item>
-
-        <!-- Tab Statistiques -->
-        <v-tab-item value="stats" v-show="activeTab === 'stats'">
-          <div class="stats-container pa-6">
-            <h3 class="minecraft-font mb-4">📈 Statistiques</h3>
-            
-            <div class="row">
-              <div class="col-md-3">
-                <v-card class="stat-card">
-                  <v-card-text class="text-center">
-                    <v-icon size="40" color="primary" class="mb-2">mdi-package-variant</v-icon>
-                    <h2 class="minecraft-font">{{ displayItems.length }}</h2>
-                    <p>Total Items</p>
-                  </v-card-text>
-                </v-card>
-              </div>
+        <v-window v-model="activeTab">
+          <!-- Tab Migration -->
+          <v-window-item value="migration">
+            <div class="migration-container pa-6">
+              <h3 class="minecraft-font mb-4">🔄 Migration GitHub → Supabase</h3>
               
-              <div class="col-md-3">
-                <v-card class="stat-card">
-                  <v-card-text class="text-center">
-                    <v-icon size="40" color="warning" class="mb-2">mdi-tag</v-icon>
-                    <h2 class="minecraft-font">{{ categories.length }}</h2>
-                    <p>Catégories</p>
-                  </v-card-text>
-                </v-card>
-              </div>
-              
-              <div class="col-md-3">
-                <v-card class="stat-card">
-                  <v-card-text class="text-center">
-                    <v-icon size="40" color="success" class="mb-2">mdi-currency-usd</v-icon>
-                    <h2 class="minecraft-font">{{ averagePrice }}</h2>
-                    <p>Prix Moyen</p>
-                  </v-card-text>
-                </v-card>
-              </div>
-              
-              <div class="col-md-3">
-                <v-card class="stat-card">
-                  <v-card-text class="text-center">
-                    <v-icon size="40" color="info" class="mb-2">mdi-database</v-icon>
-                    <h2 class="minecraft-font text-caption">{{ currentSource.toUpperCase() }}</h2>
-                    <p>Source</p>
-                  </v-card-text>
-                </v-card>
-              </div>
-            </div>
-
-            <!-- Graphique des raretés -->
-            <v-card class="mt-4">
-              <v-card-title class="minecraft-font">📊 Répartition par Catégorie</v-card-title>
-              <v-card-text>
-                <div v-for="(count, rarity) in rarityStats" :key="rarity" class="d-flex align-center mb-2">
-                  <v-chip :color="getCategoryColor(rarity)" class="mr-3">
-                    {{ getCategoryIcon(rarity) }} {{ rarity }}
-                  </v-chip>
-                  <v-progress-linear
-                    :model-value="(count / displayItems.length) * 100"
-                    :color="getCategoryColor(rarity)"
-                    class="flex-grow-1"
-                    height="20"
+              <!-- Étape 1: Charger depuis GitHub -->
+              <v-card class="step-card mb-4">
+                <v-card-title>📥 Étape 1: Charger depuis GitHub</v-card-title>
+                <v-card-text>
+                  <p class="mb-4">Chargez vos items existants depuis votre fichier GitHub JSON.</p>
+                  <v-btn 
+                    color="primary" 
+                    @click="loadFromGitHub" 
+                    :loading="loadingFromGitHub"
+                    prepend-icon="mdi-download"
+                    class="mr-3"
                   >
-                    <span class="text-white font-weight-bold">{{ count }}</span>
-                  </v-progress-linear>
+                    📥 Charger depuis GitHub
+                  </v-btn>
+                  <v-chip v-if="githubItems.length > 0" color="success">
+                    ✅ {{ githubItems.length }} items chargés
+                  </v-chip>
+                </v-card-text>
+              </v-card>
+
+              <!-- Étape 2: Migrer vers Supabase -->
+              <v-card class="step-card mb-4" :disabled="!githubItems.length">
+                <v-card-title>🚀 Étape 2: Migrer vers Supabase</v-card-title>
+                <v-card-text>
+                  <p class="mb-4">Transférez vos items vers la base de données Supabase.</p>
+                  <v-btn 
+                    color="success" 
+                    @click="migrateToSupabase" 
+                    :loading="migrating"
+                    :disabled="!githubItems.length"
+                    prepend-icon="mdi-database-import"
+                    class="mr-3"
+                  >
+                    🚀 Migrer vers Supabase ({{ githubItems.length }} items)
+                  </v-btn>
+                  <v-chip v-if="migrationDone" color="success">
+                    ✅ Migration terminée
+                  </v-chip>
+                </v-card-text>
+              </v-card>
+
+              <!-- Étape 3: Basculer le site -->
+              <v-card class="step-card" :disabled="!migrationDone">
+                <v-card-title>🔄 Étape 3: Basculer vers Supabase</v-card-title>
+                <v-card-text>
+                  <p class="mb-4">Votre site utilisera maintenant Supabase au lieu de GitHub.</p>
+                  <v-btn 
+                    color="warning" 
+                    @click="switchToSupabase" 
+                    :disabled="!migrationDone"
+                    prepend-icon="mdi-swap-horizontal"
+                  >
+                    🔄 Basculer vers Supabase
+                  </v-btn>
+                </v-card-text>
+              </v-card>
+
+              <!-- État actuel -->
+              <v-alert :type="currentSource === 'supabase' ? 'success' : 'info'" class="mt-4">
+                <strong>Source de données actuelle:</strong> 
+                {{ currentSource === 'supabase' ? '🗄️ Supabase (Base de données)' : '📁 GitHub (Fichier JSON)' }}
+              </v-alert>
+            </div>
+          </v-window-item>
+
+          <!-- Tab Gestion Items -->
+          <v-window-item value="items">
+            <div class="items-container pa-6">
+              <div class="d-flex justify-space-between align-center mb-4">
+                <h3 class="minecraft-font">📊 Gestion des Items</h3>
+                <div class="d-flex gap-2">
+                  <v-btn color="info" @click="refreshItems" :loading="refreshing">
+                    🔄 Actualiser
+                  </v-btn>
+                  <v-btn color="success" @click="addNewItem" v-if="currentSource === 'supabase'">
+                    ➕ Nouveau Item
+                  </v-btn>
+                  <v-btn color="warning" @click="openCategoryDialog" v-if="currentSource === 'supabase'">
+                    🏷️ Nouvelle Catégorie
+                  </v-btn>
                 </div>
-              </v-card-text>
-            </v-card>
-          </div>
-        </v-tab-item>
+              </div>
+
+              <v-alert v-if="currentSource === 'github'" type="info" class="mb-4">
+                ℹ️ Mode GitHub: Pour modifier les items, utilisez le panel GitHub ou migrez vers Supabase.
+              </v-alert>
+
+              <v-data-table
+                :headers="itemHeaders"
+                :items="displayItems"
+                item-key="id"
+                class="modern-table"
+                :items-per-page="15"
+                :loading="refreshing"
+              >
+                <template v-slot:item.price="{ item }">
+                  <v-chip color="success" size="small">💰 {{ item.price }}</v-chip>
+                </template>
+
+                <template v-slot:item.rarity="{ item }">
+                  <v-chip :color="getCategoryColor(item.rarity)" size="small">
+                    {{ getCategoryIcon(item.rarity) }} {{ item.rarity }}
+                  </v-chip>
+                </template>
+
+                <template v-slot:item.actions="{ item }" v-if="currentSource === 'supabase'">
+                  <div class="action-buttons">
+                    <v-btn icon size="small" color="primary" @click="editItem(item)">
+                      <v-icon>mdi-pencil</v-icon>
+                    </v-btn>
+                    <v-btn icon size="small" color="error" @click="deleteItem(item.id)">
+                      <v-icon>mdi-delete</v-icon>
+                    </v-btn>
+                  </div>
+                </template>
+              </v-data-table>
+            </div>
+          </v-window-item>
+
+          <!-- Tab Catégories -->
+          <v-window-item value="categories">
+            <div class="categories-container pa-6">
+              <div class="d-flex justify-space-between align-center mb-4">
+                <h3 class="minecraft-font">🏷️ Gestion des Catégories</h3>
+                <v-btn color="success" @click="openCategoryDialog" v-if="currentSource === 'supabase'">
+                  ➕ Nouvelle Catégorie
+                </v-btn>
+              </div>
+
+              <v-row>
+                <v-col v-for="category in categories" :key="category.id" cols="12" sm="6" md="4">
+                  <v-card class="category-card">
+                    <v-card-text class="text-center">
+                      <v-chip :color="category.color" size="large" class="mb-3">
+                        <span class="text-h6">{{ category.icon }}</span>
+                        <span class="ml-2 font-weight-bold">{{ category.name }}</span>
+                      </v-chip>
+                      <div class="d-flex justify-center gap-2 mt-3">
+                        <v-btn 
+                          icon 
+                          size="small" 
+                          color="error" 
+                          @click="deleteCategory(category.id, category.name)"
+                          v-if="!isDefaultCategory(category.name)"
+                        >
+                          <v-icon>mdi-delete</v-icon>
+                        </v-btn>
+                      </div>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </div>
+          </v-window-item>
+
+          <!-- Tab Statistiques -->
+          <v-window-item value="stats">
+            <div class="stats-container pa-6">
+              <h3 class="minecraft-font mb-4">📈 Statistiques</h3>
+              
+              <div class="row">
+                <div class="col-md-3">
+                  <v-card class="stat-card">
+                    <v-card-text class="text-center">
+                      <v-icon size="40" color="primary" class="mb-2">mdi-package-variant</v-icon>
+                      <h2 class="minecraft-font">{{ displayItems.length }}</h2>
+                      <p>Total Items</p>
+                    </v-card-text>
+                  </v-card>
+                </div>
+                
+                <div class="col-md-3">
+                  <v-card class="stat-card">
+                    <v-card-text class="text-center">
+                      <v-icon size="40" color="warning" class="mb-2">mdi-tag</v-icon>
+                      <h2 class="minecraft-font">{{ categories.length }}</h2>
+                      <p>Catégories</p>
+                    </v-card-text>
+                  </v-card>
+                </div>
+                
+                <div class="col-md-3">
+                  <v-card class="stat-card">
+                    <v-card-text class="text-center">
+                      <v-icon size="40" color="success" class="mb-2">mdi-currency-usd</v-icon>
+                      <h2 class="minecraft-font">{{ averagePrice }}</h2>
+                      <p>Prix Moyen</p>
+                    </v-card-text>
+                  </v-card>
+                </div>
+                
+                <div class="col-md-3">
+                  <v-card class="stat-card">
+                    <v-card-text class="text-center">
+                      <v-icon size="40" color="info" class="mb-2">mdi-database</v-icon>
+                      <h2 class="minecraft-font text-caption">{{ currentSource.toUpperCase() }}</h2>
+                      <p>Source</p>
+                    </v-card-text>
+                  </v-card>
+                </div>
+              </div>
+
+              <!-- Graphique des raretés -->
+              <v-card class="mt-4">
+                <v-card-title class="minecraft-font">📊 Répartition par Catégorie</v-card-title>
+                <v-card-text>
+                  <div v-for="(count, rarity) in rarityStats" :key="rarity" class="d-flex align-center mb-2">
+                    <v-chip :color="getCategoryColor(rarity)" class="mr-3">
+                      {{ getCategoryIcon(rarity) }} {{ rarity }}
+                    </v-chip>
+                    <v-progress-linear
+                      :model-value="(count / displayItems.length) * 100"
+                      :color="getCategoryColor(rarity)"
+                      class="flex-grow-1"
+                      height="20"
+                    >
+                      <span class="text-white font-weight-bold">{{ count }}</span>
+                    </v-progress-linear>
+                  </div>
+                </v-card-text>
+              </v-card>
+            </div>
+          </v-window-item>
+        </v-window>
       </v-card-text>
     </v-card>
 
@@ -438,7 +440,7 @@ export default {
       // Items pour affichage
       supabaseItems: [],
       
-      // Catégories
+      // Catégories - PLUS DE VALEURS HARDCODÉES
       categories: [],
       showCategoryDialog: false,
       editingCategory: null,
@@ -455,7 +457,7 @@ export default {
         name: '',
         description: '',
         price: 0,
-        rarity: 'Refill',
+        rarity: '',
         image: ''
       },
       
@@ -468,7 +470,7 @@ export default {
         { title: 'Actions', key: 'actions', sortable: false, width: '120px' }
       ],
       
-      rarityOptions: [],
+      rarityOptions: [], // Chargé depuis la BDD
       
       // Options pour les couleurs et icônes
       colorOptions: [
@@ -546,22 +548,16 @@ export default {
       }
     },
     
-    // Gestion des catégories
+    // Gestion des catégories - TOUT DEPUIS LA BDD
     async loadCategories() {
       try {
-        if (this.currentSource === 'supabase') {
-          this.categories = await categoriesService.getAll()
-          this.rarityOptions = this.categories.map(cat => cat.name)
-        } else {
-          // Catégories par défaut pour GitHub
-          this.rarityOptions = [
-            'Refill', 'Machines', 'Solaire', 'Circuits', 
-            'Rouages', 'Edora', 'Autres', 'Consommables',
-            'Alchimie', 'Minerais', 'Livres', 'Missiles'
-          ]
-        }
+        this.categories = await categoriesService.getAll()
+        this.rarityOptions = this.categories.map(cat => cat.name)
+        console.log(`✅ ${this.categories.length} catégories chargées depuis Supabase`)
       } catch (error) {
         console.error('Erreur chargement catégories:', error)
+        this.categories = []
+        this.rarityOptions = []
       }
     },
     
@@ -703,7 +699,7 @@ export default {
         name: '',
         description: '',
         price: 0,
-        rarity: this.rarityOptions[0] || 'Refill',
+        rarity: this.rarityOptions[0] || '',
         image: ''
       }
       this.showEditDialog = true
@@ -761,7 +757,7 @@ export default {
 </script>
 
 <style scoped>
-/* Styles existants + nouveaux */
+/* Styles existants */
 .modern-admin-panel {
   background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 50%, #1a1a1a 100%);
   border: 3px solid rgba(255, 215, 0, 0.6);

@@ -154,27 +154,14 @@ export default {
       adminkey: 'RenforcedConcretewithLime',
       items: [],
       useSupabase: false,
-
+      
       // Filtres
       searchQuery: '',
       selectedRarity: [],
       priceRange: [0, 1000],
-
-      // Options de rareté - GARDEZ LES VALEURS PAR DÉFAUT
-      rarityFilters: [
-        { label: 'Refill', value: 'Refill', color: 'grey', icon: '⚪' },
-        { label: 'Machines', value: 'Machines', color: 'green', icon: '🟢' },
-        { label: 'Solaire', value: 'Solaire', color: 'blue', icon: '🔵' },
-        { label: 'Circuits', value: 'Circuits', color: 'purple', icon: '🟣' },
-        { label: 'Rouages', value: 'Rouages', color: 'orange', icon: '🟠' },
-        { label: 'Edora', value: 'Edora', color: 'red', icon: '🔴' },
-        { label: 'Autres', value: 'Autres', color: 'cyan', icon: '🔵' },
-        { label: 'Consommables', value: 'Consommables', color: 'lime', icon: '🟢' },
-        { label: 'Alchimie', value: 'Alchimie', color: 'pink', icon: '🧪' },
-        { label: 'Minerais', value: 'Minerais', color: 'brown', icon: '⛏️' },
-        { label: 'Livres', value: 'Livres', color: 'indigo', icon: '📚' },
-        { label: 'Missiles', value: 'Missiles', color: 'deep-orange', icon: '🚀' }
-      ]
+      
+      // Options de rareté - CHARGÉES DEPUIS LA BDD
+      rarityFilters: []  // Plus de valeurs hardcodées !
     }
   },
   computed: {
@@ -184,7 +171,7 @@ export default {
 
       // Filtre par recherche textuelle
       if (this.searchQuery) {
-        filtered = filtered.filter(item =>
+        filtered = filtered.filter(item => 
           item.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
           item.description.toLowerCase().includes(this.searchQuery.toLowerCase())
         )
@@ -192,16 +179,16 @@ export default {
 
       // Filtre par rareté
       if (this.selectedRarity.length > 0) {
-        const selectedRarityValues = this.selectedRarity.map(index =>
+        const selectedRarityValues = this.selectedRarity.map(index => 
           this.rarityFilters[index].value
         )
-        filtered = filtered.filter(item =>
+        filtered = filtered.filter(item => 
           selectedRarityValues.includes(item.rarity)
         )
       }
 
       // Filtre par prix
-      filtered = filtered.filter(item =>
+      filtered = filtered.filter(item => 
         item.price >= this.priceRange[0] && item.price <= this.priceRange[1]
       )
 
@@ -230,12 +217,10 @@ export default {
   async mounted() {
     // Vérifier si on doit utiliser Supabase
     this.useSupabase = localStorage.getItem('use-supabase') === 'true'
-
-    // Charger les catégories SEULEMENT si on utilise Supabase
-    if (this.useSupabase) {
-      await this.loadCategories()
-    }
-
+    
+    // TOUJOURS charger les catégories depuis Supabase (plus de hardcodé)
+    await this.loadCategories()
+    
     await this.loadItems()
     this.checkAdminAccess()
   },
@@ -245,6 +230,7 @@ export default {
       this.selectedRarity = []
       this.priceRange = [this.minPrice, this.maxPrice]
     },
+    
     openAdminPanel() {
       this.showAdmin = true
     },
@@ -269,7 +255,7 @@ export default {
         await this.loadFromGitHub()
       }
     },
-
+    
     async loadFromGitHub() {
       try {
         const response = await fetch('https://raw.githubusercontent.com/matthieuschoen/limeazone-data/main/items.json')
@@ -291,10 +277,10 @@ export default {
         this.items = []
       }
     },
-
+    
     mergeItems(publicItems, localItems) {
       const merged = [...publicItems]
-
+      
       localItems.forEach(localItem => {
         const existingIndex = merged.findIndex(item => item.id === localItem.id)
         if (existingIndex >= 0) {
@@ -303,44 +289,81 @@ export default {
           merged.push(localItem)
         }
       })
-
+      
       return merged
     },
-
-    // Nouvelle méthode pour charger les catégories (SEULEMENT pour Supabase)
+    
+    // CHARGEMENT DES CATÉGORIES DEPUIS SUPABASE UNIQUEMENT
     async loadCategories() {
       try {
         const categories = await categoriesService.getAll()
-
-        // Mettre à jour rarityFilters avec les catégories de Supabase
+        
+        // Transformer pour les filtres
         this.rarityFilters = categories.map(cat => ({
           label: cat.name,
           value: cat.name,
           color: cat.color,
           icon: cat.icon
         }))
-
+        
         console.log(`✅ ${categories.length} catégories chargées depuis Supabase`)
       } catch (error) {
-        console.error('Erreur chargement catégories:', error)
-        // Garder les catégories par défaut en cas d'erreur
+        console.error('❌ Erreur chargement catégories:', error)
+        
+        // Fallback minimal uniquement en cas d'erreur serveur
+        this.rarityFilters = [
+          { label: 'Refill', value: 'Refill', color: 'grey', icon: '⚪' },
+          { label: 'Autres', value: 'Autres', color: 'cyan', icon: '🔵' }
+        ]
       }
     },
-
+    
     // Méthode pour gérer la mise à jour des catégories depuis le panel admin
     async onCategoriesUpdated() {
+      console.log('🔄 Mise à jour des catégories demandée')
+      await this.loadCategories()
+      
+      // Forcer le rechargement des items pour synchroniser
       if (this.useSupabase) {
-        await this.loadCategories()
+        await this.loadItems()
+      }
+      
+      // Forcer la réactivité
+      this.$forceUpdate()
+    },
+    
+    // Debug pour vérifier la cohérence
+    debugItemCategories() {
+      console.log('=== DEBUG ITEM CATEGORIES ===')
+      
+      // Chercher les items de test
+      const testItems = this.items.filter(item => item.name.toLowerCase().includes('test'))
+      testItems.forEach(item => {
+        console.log(`Item: ${item.name}, Rareté: "${item.rarity}"`)
+      })
+      
+      // Vérifier les filtres
+      console.log('Filtres disponibles:', this.rarityFilters.map(f => `${f.label} (${f.value})`))
+      
+      // Vérifier les correspondances
+      const itemRarities = [...new Set(this.items.map(i => i.rarity))]
+      const filterRarities = this.rarityFilters.map(f => f.value)
+      
+      const missing = itemRarities.filter(r => !filterRarities.includes(r))
+      if (missing.length > 0) {
+        console.warn('❌ Catégories manquantes dans les filtres:', missing)
+      } else {
+        console.log('✅ Toutes les catégories sont synchronisées')
       }
     },
-
-    // Méthodes pour l'admin panel
+    
+    // Méthodes pour l'admin panel (mode GitHub)
     addItem(item) {
       this.items.push(item)
       this.saveItems()
       this.generateNewItemsFile()
     },
-
+    
     editItem(updatedItem) {
       const index = this.items.findIndex(item => item.id === updatedItem.id)
       if (index !== -1) {
@@ -349,22 +372,22 @@ export default {
         this.generateNewItemsFile()
       }
     },
-
+    
     deleteItem(id) {
       this.items = this.items.filter(item => item.id !== id)
       this.saveItems()
       this.generateNewItemsFile()
     },
-
+    
     saveItems() {
       localStorage.setItem('minecraft-shop-items', JSON.stringify(this.items))
     },
-
+    
     generateNewItemsFile() {
       const data = JSON.stringify(this.items, null, 2)
       const blob = new Blob([data], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
-
+      
       const a = document.createElement('a')
       a.href = url
       a.download = 'items.json'
@@ -373,25 +396,25 @@ export default {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-
+      
       alert('📁 Nouveau fichier items.json généré ! Remplacez le fichier dans public/items.json et redéployez.')
     },
-
+    
     switchToSupabase() {
       this.useSupabase = true
       localStorage.setItem('use-supabase', 'true')
-      this.loadCategories() // Charger les catégories depuis Supabase
+      this.loadCategories() // Recharger les catégories depuis Supabase
       this.loadItems() // Recharger depuis Supabase
     },
-
+    
     refreshItems() {
       this.loadItems()
     },
-
+    
     checkAdminAccess() {
       const urlParams = new URLSearchParams(window.location.search)
       const adminParam = urlParams.get('Concrete')
-
+      
       if (adminParam === this.adminkey) {
         this.isAdmin = true
         sessionStorage.setItem('adminAccess', 'true')
