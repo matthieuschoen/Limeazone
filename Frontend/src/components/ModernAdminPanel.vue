@@ -1,82 +1,141 @@
 <template>
-  <v-dialog v-model="show" max-width="1400px" persistent>
+  <v-dialog v-model="show" max-width="1200px" persistent>
     <v-card class="modern-admin-panel">
       <!-- Header moderne -->
       <v-toolbar class="panel-header" elevation="0">
         <div class="header-background"></div>
         <v-toolbar-title class="panel-title minecraft-font">
-          ⚙️ Admin Panel Moderne - Gestion GitHub
+          ⚙️ Admin Panel - Gestion Supabase
         </v-toolbar-title>
         <v-spacer></v-spacer>
-        <v-chip :color="isConnected ? 'success' : 'error'" class="status-chip">
-          {{ isConnected ? '🟢 GitHub Connecté' : '🔴 GitHub Déconnecté' }}
+        <v-chip :color="supabaseConnected ? 'success' : 'error'" class="status-chip">
+          {{ supabaseConnected ? '🟢 Supabase OK' : '🔴 GitHub Mode' }}
         </v-chip>
         <v-btn icon @click="close" class="close-btn">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-toolbar>
 
-      <!-- Tabs modernes -->
+      <!-- Tabs -->
       <v-tabs v-model="activeTab" class="admin-tabs">
-        <v-tab value="editor">📝 Éditeur JSON</v-tab>
-        <v-tab value="table">📊 Vue Tableau</v-tab>
-        <v-tab value="github">🔄 GitHub Sync</v-tab>
+        <v-tab value="migration">🔄 Migration</v-tab>
+        <v-tab value="items">📊 Gestion Items</v-tab>
+        <v-tab value="categories">🏷️ Catégories</v-tab>
         <v-tab value="stats">📈 Statistiques</v-tab>
       </v-tabs>
 
       <v-card-text class="panel-content pa-0">
-        <!-- Tab 1: Éditeur JSON -->
-        <v-tab-item value="editor" v-show="activeTab === 'editor'">
-          <div class="editor-container pa-6">
-            <div class="d-flex justify-space-between align-center mb-4">
-              <h3 class="minecraft-font">🔧 Éditeur JSON Avancé</h3>
-              <div class="editor-actions">
-                <v-btn color="success" @click="validateJson" class="mx-2">
-                  ✅ Valider JSON
+        <!-- Tab Migration -->
+        <v-tab-item value="migration" v-show="activeTab === 'migration'">
+          <div class="migration-container pa-6">
+            <h3 class="minecraft-font mb-4">🔄 Migration GitHub → Supabase</h3>
+            
+            <!-- Étape 1: Charger depuis GitHub -->
+            <v-card class="step-card mb-4">
+              <v-card-title>📥 Étape 1: Charger depuis GitHub</v-card-title>
+              <v-card-text>
+                <p class="mb-4">Chargez vos items existants depuis votre fichier GitHub JSON.</p>
+                <v-btn 
+                  color="primary" 
+                  @click="loadFromGitHub" 
+                  :loading="loadingFromGitHub"
+                  prepend-icon="mdi-download"
+                  class="mr-3"
+                >
+                  📥 Charger depuis GitHub
                 </v-btn>
-                <v-btn color="primary" @click="formatJson" class="mx-2">
-                  🎨 Formater
-                </v-btn>
-                <v-btn color="warning" @click="saveToGitHub" :loading="saving">
-                  💾 Sauvegarder sur GitHub
-                </v-btn>
-              </div>
-            </div>
+                <v-chip v-if="githubItems.length > 0" color="success">
+                  ✅ {{ githubItems.length }} items chargés
+                </v-chip>
+              </v-card-text>
+            </v-card>
 
-            <v-textarea v-model="itemsJsonString" label="Items JSON" :rows="20" variant="outlined" class="json-editor"
-              :error="jsonError" :error-messages="jsonErrorMessage" @input="onJsonChange"></v-textarea>
+            <!-- Étape 2: Migrer vers Supabase -->
+            <v-card class="step-card mb-4" :disabled="!githubItems.length">
+              <v-card-title>🚀 Étape 2: Migrer vers Supabase</v-card-title>
+              <v-card-text>
+                <p class="mb-4">Transférez vos items vers la base de données Supabase.</p>
+                <v-btn 
+                  color="success" 
+                  @click="migrateToSupabase" 
+                  :loading="migrating"
+                  :disabled="!githubItems.length"
+                  prepend-icon="mdi-database-import"
+                  class="mr-3"
+                >
+                  🚀 Migrer vers Supabase ({{ githubItems.length }} items)
+                </v-btn>
+                <v-chip v-if="migrationDone" color="success">
+                  ✅ Migration terminée
+                </v-chip>
+              </v-card-text>
+            </v-card>
 
-            <v-alert v-if="lastSaved" type="success" class="mt-4">
-              💾 Dernière sauvegarde: {{ lastSaved }}
+            <!-- Étape 3: Basculer le site -->
+            <v-card class="step-card" :disabled="!migrationDone">
+              <v-card-title>🔄 Étape 3: Basculer vers Supabase</v-card-title>
+              <v-card-text>
+                <p class="mb-4">Votre site utilisera maintenant Supabase au lieu de GitHub.</p>
+                <v-btn 
+                  color="warning" 
+                  @click="switchToSupabase" 
+                  :disabled="!migrationDone"
+                  prepend-icon="mdi-swap-horizontal"
+                >
+                  🔄 Basculer vers Supabase
+                </v-btn>
+              </v-card-text>
+            </v-card>
+
+            <!-- État actuel -->
+            <v-alert :type="currentSource === 'supabase' ? 'success' : 'info'" class="mt-4">
+              <strong>Source de données actuelle:</strong> 
+              {{ currentSource === 'supabase' ? '🗄️ Supabase (Base de données)' : '📁 GitHub (Fichier JSON)' }}
             </v-alert>
           </div>
         </v-tab-item>
 
-        <!-- Tab 2: Vue Tableau -->
-        <v-tab-item value="table" v-show="activeTab === 'table'">
-          <div class="table-container pa-6">
+        <!-- Tab Gestion Items -->
+        <v-tab-item value="items" v-show="activeTab === 'items'">
+          <div class="items-container pa-6">
             <div class="d-flex justify-space-between align-center mb-4">
-              <h3 class="minecraft-font">📊 Gestion des Produits</h3>
-              <v-btn color="success" @click="addNewItem" prepend-icon="mdi-plus">
-                ➕ Nouveau Produit
-              </v-btn>
+              <h3 class="minecraft-font">📊 Gestion des Items</h3>
+              <div class="d-flex gap-2">
+                <v-btn color="info" @click="refreshItems" :loading="refreshing">
+                  🔄 Actualiser
+                </v-btn>
+                <v-btn color="success" @click="addNewItem" v-if="currentSource === 'supabase'">
+                  ➕ Nouveau Item
+                </v-btn>
+                <v-btn color="warning" @click="openCategoryDialog" v-if="currentSource === 'supabase'">
+                  🏷️ Nouvelle Catégorie
+                </v-btn>
+              </div>
             </div>
 
-            <v-data-table :headers="tableHeaders" :items="parsedItems" item-key="id" class="modern-table"
-              :items-per-page="10">
+            <v-alert v-if="currentSource === 'github'" type="info" class="mb-4">
+              ℹ️ Mode GitHub: Pour modifier les items, utilisez le panel GitHub ou migrez vers Supabase.
+            </v-alert>
+
+            <v-data-table
+              :headers="itemHeaders"
+              :items="displayItems"
+              item-key="id"
+              class="modern-table"
+              :items-per-page="15"
+              :loading="refreshing"
+            >
               <template v-slot:item.price="{ item }">
-                <v-chip color="success" size="small">
-                  💰 {{ item.price }}
-                </v-chip>
+                <v-chip color="success" size="small">💰 {{ item.price }}</v-chip>
               </template>
 
               <template v-slot:item.rarity="{ item }">
-                <v-chip :color="getRarityColor(item.rarity)" size="small">
-                  {{ getRarityIcon(item.rarity) }} {{ item.rarity }}
+                <v-chip :color="getCategoryColor(item.rarity)" size="small">
+                  {{ getCategoryIcon(item.rarity) }} {{ item.rarity }}
                 </v-chip>
               </template>
 
-              <template v-slot:item.actions="{ item }">
+              <template v-slot:item.actions="{ item }" v-if="currentSource === 'supabase'">
                 <div class="action-buttons">
                   <v-btn icon size="small" color="primary" @click="editItem(item)">
                     <v-icon>mdi-pencil</v-icon>
@@ -90,90 +149,68 @@
           </div>
         </v-tab-item>
 
-        <!-- Tab 3: GitHub Sync -->
-        <v-tab-item value="github" v-show="activeTab === 'github'">
-          <div class="github-container pa-6">
-            <div class="row">
-              <div class="col-md-6">
-                <v-card class="github-card mb-4">
-                  <v-card-title class="minecraft-font">🔗 Configuration GitHub</v-card-title>
-                  <v-card-text>
-                    <v-text-field v-model="githubConfig.owner" label="Owner (votre username)" variant="outlined"
-                      class="mb-3"></v-text-field>
-                    <v-text-field v-model="githubConfig.repo" label="Repository name" variant="outlined"
-                      class="mb-3"></v-text-field>
-                    <v-text-field v-model="githubConfig.token" label="GitHub Token" type="password" variant="outlined"
-                      hint="Générez un token sur GitHub Settings"></v-text-field>
-                  </v-card-text>
-                  <v-card-actions>
-                    <v-btn color="primary" @click="testGitHubConnection" :loading="testing">
-                      🧪 Tester la connexion
-                    </v-btn>
-                  </v-card-actions>
-                </v-card>
-              </div>
-
-              <div class="col-md-6">
-                <v-card class="sync-card">
-                  <v-card-title class="minecraft-font">🔄 Synchronisation</v-card-title>
-                  <v-card-text>
-                    <div class="sync-status mb-4">
-                      <p><strong>Dernière sync:</strong> {{ lastSync || 'Jamais' }}</p>
-                      <p><strong>Status:</strong> {{ syncStatus }}</p>
-                    </div>
-
-                    <div class="sync-actions d-flex flex-column gap-3">
-                      <v-btn color="info" @click="pullFromGitHub" :loading="pulling" block>
-                        📥 Récupérer depuis GitHub
-                      </v-btn>
-                      <v-btn color="warning" @click="pushToGitHub" :loading="pushing" block>
-                        📤 Envoyer vers GitHub
-                      </v-btn>
-                      <v-btn color="success" @click="deployToVercel" :loading="deploying" block>
-                        🚀 Déployer sur Vercel
-                      </v-btn>
-                    </div>
-                  </v-card-text>
-                </v-card>
-              </div>
+        <!-- Tab Catégories -->
+        <v-tab-item value="categories" v-show="activeTab === 'categories'">
+          <div class="categories-container pa-6">
+            <div class="d-flex justify-space-between align-center mb-4">
+              <h3 class="minecraft-font">🏷️ Gestion des Catégories</h3>
+              <v-btn color="success" @click="openCategoryDialog" v-if="currentSource === 'supabase'">
+                ➕ Nouvelle Catégorie
+              </v-btn>
             </div>
 
-            <!-- Historique des commits -->
-            <v-card class="commits-card mt-4">
-              <v-card-title class="minecraft-font">📜 Historique des modifications</v-card-title>
-              <v-card-text>
-                <v-list>
-                  <v-list-item v-for="commit in recentCommits" :key="commit.sha">
-                    <template v-slot:prepend>
-                      <v-icon color="primary">mdi-source-commit</v-icon>
-                    </template>
-                    <v-list-item-title>{{ commit.message }}</v-list-item-title>
-                    <v-list-item-subtitle>
-                      {{ formatDate(commit.date) }} - {{ commit.author }}
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                </v-list>
-              </v-card-text>
-            </v-card>
+            <v-row>
+              <v-col v-for="category in categories" :key="category.id" cols="12" sm="6" md="4">
+                <v-card class="category-card">
+                  <v-card-text class="text-center">
+                    <v-chip :color="category.color" size="large" class="mb-3">
+                      <span class="text-h6">{{ category.icon }}</span>
+                      <span class="ml-2 font-weight-bold">{{ category.name }}</span>
+                    </v-chip>
+                    <div class="d-flex justify-center gap-2 mt-3">
+                      <v-btn 
+                        icon 
+                        size="small" 
+                        color="error" 
+                        @click="deleteCategory(category.id, category.name)"
+                        v-if="!isDefaultCategory(category.name)"
+                      >
+                        <v-icon>mdi-delete</v-icon>
+                      </v-btn>
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
           </div>
         </v-tab-item>
 
-        <!-- Tab 4: Statistiques -->
+        <!-- Tab Statistiques -->
         <v-tab-item value="stats" v-show="activeTab === 'stats'">
           <div class="stats-container pa-6">
-            <h3 class="minecraft-font mb-4">📈 Statistiques du Shop</h3>
-
+            <h3 class="minecraft-font mb-4">📈 Statistiques</h3>
+            
             <div class="row">
               <div class="col-md-3">
                 <v-card class="stat-card">
                   <v-card-text class="text-center">
                     <v-icon size="40" color="primary" class="mb-2">mdi-package-variant</v-icon>
-                    <h2 class="minecraft-font">{{ parsedItems.length }}</h2>
+                    <h2 class="minecraft-font">{{ displayItems.length }}</h2>
                     <p>Total Items</p>
                   </v-card-text>
                 </v-card>
               </div>
-
+              
+              <div class="col-md-3">
+                <v-card class="stat-card">
+                  <v-card-text class="text-center">
+                    <v-icon size="40" color="warning" class="mb-2">mdi-tag</v-icon>
+                    <h2 class="minecraft-font">{{ categories.length }}</h2>
+                    <p>Catégories</p>
+                  </v-card-text>
+                </v-card>
+              </div>
+              
               <div class="col-md-3">
                 <v-card class="stat-card">
                   <v-card-text class="text-center">
@@ -183,23 +220,13 @@
                   </v-card-text>
                 </v-card>
               </div>
-
+              
               <div class="col-md-3">
                 <v-card class="stat-card">
                   <v-card-text class="text-center">
-                    <v-icon size="40" color="warning" class="mb-2">mdi-star</v-icon>
-                    <h2 class="minecraft-font">{{ mostExpensiveItem?.name || 'N/A' }}</h2>
-                    <p>Plus Cher</p>
-                  </v-card-text>
-                </v-card>
-              </div>
-
-              <div class="col-md-3">
-                <v-card class="stat-card">
-                  <v-card-text class="text-center">
-                    <v-icon size="40" color="info" class="mb-2">mdi-chart-pie</v-icon>
-                    <h2 class="minecraft-font">{{ Object.keys(rarityStats).length }}</h2>
-                    <p>Catégories</p>
+                    <v-icon size="40" color="info" class="mb-2">mdi-database</v-icon>
+                    <h2 class="minecraft-font text-caption">{{ currentSource.toUpperCase() }}</h2>
+                    <p>Source</p>
                   </v-card-text>
                 </v-card>
               </div>
@@ -210,11 +237,15 @@
               <v-card-title class="minecraft-font">📊 Répartition par Catégorie</v-card-title>
               <v-card-text>
                 <div v-for="(count, rarity) in rarityStats" :key="rarity" class="d-flex align-center mb-2">
-                  <v-chip :color="getRarityColor(rarity)" class="mr-3">
-                    {{ getRarityIcon(rarity) }} {{ rarity }}
+                  <v-chip :color="getCategoryColor(rarity)" class="mr-3">
+                    {{ getCategoryIcon(rarity) }} {{ rarity }}
                   </v-chip>
-                  <v-progress-linear :model-value="(count / parsedItems.length) * 100" :color="getRarityColor(rarity)"
-                    class="flex-grow-1" height="20">
+                  <v-progress-linear
+                    :model-value="(count / displayItems.length) * 100"
+                    :color="getCategoryColor(rarity)"
+                    class="flex-grow-1"
+                    height="20"
+                  >
                     <span class="text-white font-weight-bold">{{ count }}</span>
                   </v-progress-linear>
                 </div>
@@ -229,24 +260,145 @@
     <v-dialog v-model="showEditDialog" max-width="600px">
       <v-card class="edit-dialog">
         <v-card-title class="minecraft-font">
-          {{ editingItem ? '✏️ Modifier' : '➕ Nouveau' }} Produit
+          {{ editingItem ? '✏️ Modifier' : '➕ Nouveau' }} Item
         </v-card-title>
         <v-card-text>
           <v-form ref="editForm">
-            <v-text-field v-model="editForm.name" label="Nom du produit" variant="outlined" class="mb-3"
-              required></v-text-field>
-            <v-textarea v-model="editForm.description" label="Description" variant="outlined" rows="3"
-              class="mb-3"></v-textarea>
-            <v-text-field v-model.number="editForm.price" label="Prix (coins)" type="number" variant="outlined"
-              class="mb-3"></v-text-field>
-            <v-select v-model="editForm.rarity" :items="rarityOptions" label="Catégorie" variant="outlined"></v-select>
+            <v-text-field
+              v-model="editForm.name"
+              label="Nom du produit"
+              variant="outlined"
+              class="mb-3"
+              required
+            ></v-text-field>
+            <v-textarea
+              v-model="editForm.description"
+              label="Description"
+              variant="outlined"
+              rows="3"
+              class="mb-3"
+            ></v-textarea>
+            <v-text-field
+              v-model.number="editForm.price"
+              label="Prix (coins)"
+              type="number"
+              variant="outlined"
+              class="mb-3"
+            ></v-text-field>
+            <v-select
+              v-model="editForm.rarity"
+              :items="rarityOptions"
+              label="Catégorie"
+              variant="outlined"
+              class="mb-3"
+            >
+              <template v-slot:selection="{ item }">
+                <v-chip :color="getCategoryColor(item)" size="small">
+                  {{ getCategoryIcon(item) }} {{ item }}
+                </v-chip>
+              </template>
+              <template v-slot:item="{ item, props }">
+                <v-list-item v-bind="props">
+                  <template v-slot:prepend>
+                    <v-chip :color="getCategoryColor(item.title)" size="x-small">
+                      {{ getCategoryIcon(item.title) }}
+                    </v-chip>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-select>
+            <v-text-field
+              v-model="editForm.image"
+              label="URL de l'image (optionnel)"
+              variant="outlined"
+              placeholder="https://example.com/image.png"
+            ></v-text-field>
           </v-form>
         </v-card-text>
         <v-card-actions>
           <v-btn color="grey" @click="cancelEdit">Annuler</v-btn>
           <v-spacer></v-spacer>
-          <v-btn color="success" @click="saveEdit">
+          <v-btn color="success" @click="saveEdit" :loading="saving">
             {{ editingItem ? 'Modifier' : 'Créer' }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog de création de catégorie -->
+    <v-dialog v-model="showCategoryDialog" max-width="500px">
+      <v-card class="category-dialog">
+        <v-card-title class="minecraft-font">
+          🏷️ {{ editingCategory ? 'Modifier' : 'Nouvelle' }} Catégorie
+        </v-card-title>
+        <v-card-text>
+          <v-form ref="categoryForm">
+            <v-text-field
+              v-model="categoryForm.name"
+              label="Nom de la catégorie"
+              variant="outlined"
+              class="mb-3"
+              required
+              placeholder="Ex: Outils magiques"
+            ></v-text-field>
+            
+            <v-select
+              v-model="categoryForm.color"
+              :items="colorOptions"
+              label="Couleur"
+              variant="outlined"
+              class="mb-3"
+            >
+              <template v-slot:selection="{ item }">
+                <v-chip :color="item.value" size="small" class="mr-2">
+                  {{ item.title }}
+                </v-chip>
+              </template>
+              <template v-slot:item="{ item, props }">
+                <v-list-item v-bind="props">
+                  <template v-slot:prepend>
+                    <v-chip :color="item.value" size="x-small"></v-chip>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-select>
+            
+            <v-select
+              v-model="categoryForm.icon"
+              :items="iconOptions"
+              label="Icône"
+              variant="outlined"
+              class="mb-3"
+            >
+              <template v-slot:selection="{ item }">
+                <span class="text-h6 mr-2">{{ item }}</span>{{ item }}
+              </template>
+              <template v-slot:item="{ item, props }">
+                <v-list-item v-bind="props">
+                  <template v-slot:prepend>
+                    <span class="text-h6">{{ item }}</span>
+                  </template>
+                  <v-list-item-title>{{ item }}</v-list-item-title>
+                </v-list-item>
+              </template>
+            </v-select>
+            
+            <!-- Aperçu -->
+            <v-card class="mt-4 pa-3" variant="outlined">
+              <div class="text-center">
+                <strong>Aperçu :</strong>
+                <v-chip :color="categoryForm.color" class="ml-2">
+                  {{ categoryForm.icon }} {{ categoryForm.name }}
+                </v-chip>
+              </div>
+            </v-card>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn color="grey" @click="cancelCategoryCreation">Annuler</v-btn>
+          <v-spacer></v-spacer>
+          <v-btn color="success" @click="createCategory" :loading="saving">
+            {{ editingCategory ? '✏️ Modifier' : '✅ Créer' }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -255,355 +407,352 @@
 </template>
 
 <script>
+import { itemsService, categoriesService } from '../services/database.js'
+
 export default {
   name: 'ModernAdminPanel',
   props: {
-    modelValue: Boolean
+    modelValue: Boolean,
+    items: {
+      type: Array,
+      default: () => []
+    }
   },
-  emits: ['update:modelValue', 'close'],
+  emits: ['update:modelValue', 'close', 'switch-to-supabase', 'refresh-items', 'categories-updated'],
+  
   data() {
     return {
-      activeTab: 'editor',
-      itemsJsonString: '',
-      jsonError: false,
-      jsonErrorMessage: '',
+      activeTab: 'migration',
+      
+      // États de chargement
+      loadingFromGitHub: false,
+      migrating: false,
+      refreshing: false,
       saving: false,
-      testing: false,
-      pulling: false,
-      pushing: false,
-      deploying: false,
-      lastSaved: null,
-      lastSync: null,
-      syncStatus: 'Non synchronisé',
-      isConnected: false,
-
-      // GitHub config
-      githubConfig: {
-        owner: 'matthieuschoen',
-        repo: 'Limeazone-data',
-        token: ''
+      
+      // États de migration
+      githubItems: [],
+      migrationDone: false,
+      supabaseConnected: false,
+      
+      // Items pour affichage
+      supabaseItems: [],
+      
+      // Catégories
+      categories: [],
+      showCategoryDialog: false,
+      editingCategory: null,
+      categoryForm: {
+        name: '',
+        color: 'grey',
+        icon: '⚪'
       },
-
-      // Table
+      
+      // Édition d'items
       showEditDialog: false,
       editingItem: null,
       editForm: {
         name: '',
         description: '',
         price: 0,
-        rarity: 'Refill'
+        rarity: 'Refill',
+        image: ''
       },
-
-      tableHeaders: [
+      
+      itemHeaders: [
+        { title: 'ID', key: 'id', width: '80px' },
         { title: 'Nom', key: 'name' },
         { title: 'Description', key: 'description' },
-        { title: 'Prix', key: 'price' },
-        { title: 'Catégorie', key: 'rarity' },
-        { title: 'Actions', key: 'actions', sortable: false }
+        { title: 'Prix', key: 'price', width: '120px' },
+        { title: 'Catégorie', key: 'rarity', width: '150px' },
+        { title: 'Actions', key: 'actions', sortable: false, width: '120px' }
       ],
-
-      rarityOptions: [
-        'Refill',
-        'Machines',
-        'Solaire',
-        'Circuits',
-        'Rouages',
-        'Edora',
-        'Autres',
-        'Consommables',
-        'Alchimie',      // ← Nouveau
-        'Minerais',      // ← Nouveau
-        'Livres',        // ← Nouveau
-        'Missiles'       // ← Nouveau
+      
+      rarityOptions: [],
+      
+      // Options pour les couleurs et icônes
+      colorOptions: [
+        { title: 'Gris', value: 'grey' },
+        { title: 'Vert', value: 'green' },
+        { title: 'Bleu', value: 'blue' },
+        { title: 'Violet', value: 'purple' },
+        { title: 'Orange', value: 'orange' },
+        { title: 'Rouge', value: 'red' },
+        { title: 'Cyan', value: 'cyan' },
+        { title: 'Lime', value: 'lime' },
+        { title: 'Rose', value: 'pink' },
+        { title: 'Marron', value: 'brown' },
+        { title: 'Indigo', value: 'indigo' },
+        { title: 'Jaune', value: 'yellow' }
       ],
-
-      recentCommits: []
+      
+      iconOptions: [
+        '⚪', '🟢', '🔵', '🟣', '🟠', '🔴', '🟡', '⚫',
+        '🧪', '⛏️', '📚', '🚀', '⭐', '💎', '🔥', '❄️',
+        '🎯', '🗡️', '🏹', '🛡️', '💊', '🔮', '🎭', '🎪'
+      ]
     }
   },
+  
   computed: {
     show: {
       get() { return this.modelValue },
       set(value) { this.$emit('update:modelValue', value) }
     },
-
-    parsedItems() {
-      try {
-        return JSON.parse(this.itemsJsonString)
-      } catch {
-        return []
-      }
+    
+    currentSource() {
+      return localStorage.getItem('use-supabase') === 'true' ? 'supabase' : 'github'
     },
-
+    
+    displayItems() {
+      return this.currentSource === 'supabase' ? this.supabaseItems : this.items
+    },
+    
     averagePrice() {
-      if (this.parsedItems.length === 0) return 0
-      const total = this.parsedItems.reduce((sum, item) => sum + (item.price || 0), 0)
-      return Math.round(total / this.parsedItems.length)
+      if (this.displayItems.length === 0) return 0
+      const total = this.displayItems.reduce((sum, item) => sum + (item.price || 0), 0)
+      return Math.round(total / this.displayItems.length)
     },
-
+    
     mostExpensiveItem() {
-      return this.parsedItems.reduce((max, item) =>
+      return this.displayItems.reduce((max, item) => 
         (item.price || 0) > (max?.price || 0) ? item : max, null)
     },
-
+    
     rarityStats() {
       const stats = {}
-      this.parsedItems.forEach(item => {
+      this.displayItems.forEach(item => {
         stats[item.rarity] = (stats[item.rarity] || 0) + 1
       })
       return stats
     }
   },
-
+  
   async mounted() {
-    await this.loadItemsFromLocal()
-    this.loadGitHubConfig()
+    await this.checkSupabaseConnection()
+    await this.loadCategories()
+    if (this.currentSource === 'supabase') {
+      await this.loadSupabaseItems()
+    }
   },
-
+  
   methods: {
-    async loadItemsFromLocal() {
+    async checkSupabaseConnection() {
       try {
-        const response = await fetch('/items.json')
-        const items = await response.json()
-        this.itemsJsonString = JSON.stringify(items, null, 2)
+        await itemsService.getAll()
+        this.supabaseConnected = true
       } catch (error) {
-        console.error('Erreur chargement items:', error)
-        this.itemsJsonString = '[]'
+        this.supabaseConnected = false
       }
     },
-
-    loadGitHubConfig() {
-      const saved = localStorage.getItem('github-config')
-      if (saved) {
-        this.githubConfig = { ...this.githubConfig, ...JSON.parse(saved) }
-      }
-    },
-
-    saveGitHubConfig() {
-      localStorage.setItem('github-config', JSON.stringify(this.githubConfig))
-    },
-
-    onJsonChange() {
+    
+    // Gestion des catégories
+    async loadCategories() {
       try {
-        JSON.parse(this.itemsJsonString)
-        this.jsonError = false
-        this.jsonErrorMessage = ''
-      } catch (error) {
-        this.jsonError = true
-        this.jsonErrorMessage = 'JSON invalide: ' + error.message
-      }
-    },
-
-    validateJson() {
-      this.onJsonChange()
-      if (!this.jsonError) {
-        this.$toast.success('✅ JSON valide!')
-      }
-    },
-
-    formatJson() {
-      try {
-        const parsed = JSON.parse(this.itemsJsonString)
-        this.itemsJsonString = JSON.stringify(parsed, null, 2)
-        this.$toast.success('🎨 JSON formaté!')
-      } catch {
-        this.$toast.error('❌ Impossible de formater un JSON invalide')
-      }
-    },
-
-    async testGitHubConnection() {
-      this.testing = true
-      try {
-        const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}`, {
-          headers: {
-            'Authorization': `token ${this.githubConfig.token}`
-          }
-        })
-
-        if (response.ok) {
-          this.isConnected = true
-          this.saveGitHubConfig()
-          alert('🟢 Connexion GitHub réussie!')
+        if (this.currentSource === 'supabase') {
+          this.categories = await categoriesService.getAll()
+          this.rarityOptions = this.categories.map(cat => cat.name)
         } else {
-          throw new Error('Connexion échouée')
+          // Catégories par défaut pour GitHub
+          this.rarityOptions = [
+            'Refill', 'Machines', 'Solaire', 'Circuits', 
+            'Rouages', 'Edora', 'Autres', 'Consommables',
+            'Alchimie', 'Minerais', 'Livres', 'Missiles'
+          ]
         }
       } catch (error) {
-        this.isConnected = false
-        alert('🔴 Erreur de connexion GitHub')
-      } finally {
-        this.testing = false
+        console.error('Erreur chargement catégories:', error)
       }
     },
-
-    async pullFromGitHub() {
-      this.pulling = true
-      try {
-        const response = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/items.json`, {
-          headers: {
-            'Authorization': `token ${this.githubConfig.token}`
-          }
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          this.itemsJsonString = atob(data.content)
-          this.lastSync = new Date().toLocaleString()
-          this.syncStatus = 'Synchronisé'
-          this.$toast.success('📥 Données récupérées depuis GitHub!')
-        }
-      } catch (error) {
-        this.$toast.error('❌ Erreur lors de la récupération')
-      } finally {
-        this.pulling = false
-      }
+    
+    getCategoryColor(categoryName) {
+      const category = this.categories.find(cat => cat.name === categoryName)
+      return category ? category.color : 'grey'
     },
-
-    async saveToGitHub() {
-      if (this.jsonError) {
-        this.$toast.error('❌ Corrigez les erreurs JSON avant de sauvegarder')
+    
+    getCategoryIcon(categoryName) {
+      const category = this.categories.find(cat => cat.name === categoryName)
+      return category ? category.icon : '⚪'
+    },
+    
+    openCategoryDialog() {
+      this.editingCategory = null
+      this.categoryForm = {
+        name: '',
+        color: 'grey',
+        icon: '⚪'
+      }
+      this.showCategoryDialog = true
+    },
+    
+    cancelCategoryCreation() {
+      this.showCategoryDialog = false
+    },
+    
+    async createCategory() {
+      if (!this.categoryForm.name.trim()) {
+        alert('⚠️ Le nom de la catégorie est requis!')
         return
       }
-
+      
       this.saving = true
       try {
-        // Récupérer le SHA actuel
-        const currentResponse = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/items.json`, {
-          headers: {
-            'Authorization': `token ${this.githubConfig.token}`
-          }
-        })
-
-        const currentData = await currentResponse.json()
-
-        // Mettre à jour
-        const updateResponse = await fetch(`https://api.github.com/repos/${this.githubConfig.owner}/${this.githubConfig.repo}/contents/items.json`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `token ${this.githubConfig.token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: `Update items - ${new Date().toLocaleString()}`,
-            content: btoa(this.itemsJsonString),
-            sha: currentData.sha
-          })
-        })
-
-        if (updateResponse.ok) {
-          this.lastSaved = new Date().toLocaleString()
-          this.syncStatus = 'Sauvegardé'
-          this.$toast.success('💾 Sauvegardé sur GitHub!')
+        if (this.editingCategory) {
+          await categoriesService.update(this.editingCategory.id, this.categoryForm)
+          alert(`✏️ Catégorie "${this.categoryForm.name}" modifiée!`)
+        } else {
+          await categoriesService.create(this.categoryForm)
+          alert(`✅ Catégorie "${this.categoryForm.name}" créée!`)
         }
+        
+        await this.loadCategories()
+        this.$emit('categories-updated')
+        this.showCategoryDialog = false
       } catch (error) {
-        this.$toast.error('❌ Erreur lors de la sauvegarde')
+        if (error.message.includes('duplicate')) {
+          alert('❌ Une catégorie avec ce nom existe déjà!')
+        } else {
+          alert('❌ Erreur: ' + error.message)
+        }
       } finally {
         this.saving = false
       }
     },
-
-    async deployToVercel() {
-      this.deploying = true
+    
+    async deleteCategory(id, name) {
+      if (!confirm(`Supprimer la catégorie "${name}" ?\n\nAttention: Les items de cette catégorie devront être recatégorisés.`)) return
+      
       try {
-        // Déclencher un redéploiement Vercel via webhook si configuré
-        this.$toast.success('🚀 Déploiement déclenché!')
+        await categoriesService.delete(id)
+        alert(`🗑️ Catégorie "${name}" supprimée!`)
+        await this.loadCategories()
+        this.$emit('categories-updated')
       } catch (error) {
-        this.$toast.error('❌ Erreur lors du déploiement')
-      } finally {
-        this.deploying = false
+        alert('❌ Erreur suppression: ' + error.message)
       }
     },
-
-    // Méthodes d'édition
+    
+    isDefaultCategory(name) {
+      const defaultCategories = ['Refill', 'Machines', 'Solaire', 'Circuits', 'Rouages', 'Edora']
+      return defaultCategories.includes(name)
+    },
+    
+    // Migration depuis GitHub
+    async loadFromGitHub() {
+      this.loadingFromGitHub = true
+      try {
+        const response = await fetch('https://raw.githubusercontent.com/matthieuschoen/limeazone-data/main/items.json')
+        this.githubItems = await response.json()
+        alert(`✅ ${this.githubItems.length} items chargés depuis GitHub`)
+      } catch (error) {
+        alert('❌ Erreur chargement GitHub: ' + error.message)
+      } finally {
+        this.loadingFromGitHub = false
+      }
+    },
+    
+    async migrateToSupabase() {
+      if (!confirm(`Migrer ${this.githubItems.length} items vers Supabase ?`)) return
+      
+      this.migrating = true
+      try {
+        await itemsService.migrateFromJson(this.githubItems)
+        alert(`✅ Migration réussie! ${this.githubItems.length} items ajoutés à Supabase`)
+        this.migrationDone = true
+        this.supabaseConnected = true
+        await this.loadSupabaseItems()
+      } catch (error) {
+        alert('❌ Erreur migration: ' + error.message)
+      } finally {
+        this.migrating = false
+      }
+    },
+    
+    switchToSupabase() {
+      if (confirm('Basculer vers Supabase ? Votre site utilisera la base de données.')) {
+        localStorage.setItem('use-supabase', 'true')
+        this.$emit('switch-to-supabase')
+        alert('✅ Votre site utilise maintenant Supabase!')
+      }
+    },
+    
+    async loadSupabaseItems() {
+      try {
+        this.supabaseItems = await itemsService.getAll()
+      } catch (error) {
+        console.error('Erreur chargement Supabase:', error)
+      }
+    },
+    
+    async refreshItems() {
+      this.refreshing = true
+      try {
+        if (this.currentSource === 'supabase') {
+          await this.loadSupabaseItems()
+        }
+        this.$emit('refresh-items')
+      } finally {
+        this.refreshing = false
+      }
+    },
+    
+    // CRUD Operations
     addNewItem() {
       this.editingItem = null
       this.editForm = {
         name: '',
         description: '',
         price: 0,
-        rarity: 'Refill'
+        rarity: this.rarityOptions[0] || 'Refill',
+        image: ''
       }
       this.showEditDialog = true
     },
-
+    
     editItem(item) {
       this.editingItem = item
       this.editForm = { ...item }
       this.showEditDialog = true
     },
-
-    saveEdit() {
-      const items = [...this.parsedItems]
-
-      if (this.editingItem) {
-        // Modifier
-        const index = items.findIndex(i => i.id === this.editingItem.id)
-        items[index] = { ...this.editForm }
-      } else {
-        // Créer
-        const newItem = {
-          ...this.editForm,
-          id: Date.now()
+    
+    async saveEdit() {
+      this.saving = true
+      try {
+        if (this.editingItem) {
+          await itemsService.update(this.editingItem.id, this.editForm)
+          alert('✏️ Item modifié!')
+        } else {
+          await itemsService.create(this.editForm)
+          alert('➕ Item créé!')
         }
-        items.push(newItem)
+        
+        this.showEditDialog = false
+        await this.loadSupabaseItems()
+        this.$emit('refresh-items')
+      } catch (error) {
+        alert('❌ Erreur: ' + error.message)
+      } finally {
+        this.saving = false
       }
-
-      this.itemsJsonString = JSON.stringify(items, null, 2)
-      this.showEditDialog = false
-      this.$toast.success(this.editingItem ? '✏️ Item modifié!' : '➕ Item créé!')
     },
-
+    
     cancelEdit() {
       this.showEditDialog = false
     },
-
-    deleteItem(id) {
-      if (confirm('Êtes-vous sûr de vouloir supprimer cet item ?')) {
-        const items = this.parsedItems.filter(item => item.id !== id)
-        this.itemsJsonString = JSON.stringify(items, null, 2)
-        this.$toast.success('🗑️ Item supprimé!')
+    
+    async deleteItem(id) {
+      if (!confirm('Supprimer cet item ?')) return
+      
+      try {
+        await itemsService.delete(id)
+        alert('🗑️ Item supprimé!')
+        await this.loadSupabaseItems()
+        this.$emit('refresh-items')
+      } catch (error) {
+        alert('❌ Erreur: ' + error.message)
       }
     },
-
-    // Utilitaires
-    getRarityColor(rarity) {
-      const colors = {
-        'Refill': 'grey',
-        'Machines': 'green',
-        'Solaire': 'blue',
-        'Circuits': 'purple',
-        'Rouages': 'orange',
-        'Edora': 'red',
-        'Autres': 'cyan',
-        'Consommables': 'lime',
-        'Alchimie': 'pink',        // ← Nouveau
-        'Minerais': 'brown',       // ← Nouveau
-        'Livres': 'indigo',        // ← Nouveau
-        'Missiles': 'deep-orange'  // ← Nouveau
-      }
-      return colors[rarity] || 'grey'
-    },
-
-    getRarityIcon(rarity) {
-      const icons = {
-        'Refill': '⚪',
-        'Machines': '🟢',
-        'Solaire': '🔵',
-        'Circuits': '🟣',
-        'Rouages': '🟠',
-        'Edora': '🔴',
-        'Autres': '🔵',
-        'Consommables': '🟢',
-        'Alchimie': '🧪',      // ← Nouveau
-        'Minerais': '⛏️',     // ← Nouveau
-        'Livres': '📚',       // ← Nouveau
-        'Missiles': '🚀'      // ← Nouveau
-      }
-      return icons[rarity] || '⚪'
-    },
-
-    formatDate(date) {
-      return new Date(date).toLocaleString()
-    },
-
+    
     close() {
       this.$emit('close')
     }
@@ -612,7 +761,7 @@ export default {
 </script>
 
 <style scoped>
-/* Panel moderne */
+/* Styles existants + nouveaux */
 .modern-admin-panel {
   background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 50%, #1a1a1a 100%);
   border: 3px solid rgba(255, 215, 0, 0.6);
@@ -658,7 +807,6 @@ export default {
   z-index: 2;
 }
 
-/* Tabs */
 .admin-tabs {
   background: rgba(255, 215, 0, 0.05);
   border-bottom: 2px solid rgba(255, 215, 0, 0.3);
@@ -668,7 +816,6 @@ export default {
   color: #FFD700 !important;
 }
 
-/* Content */
 .panel-content {
   background: transparent;
   color: #ffffff;
@@ -676,38 +823,30 @@ export default {
   overflow-y: auto;
 }
 
-/* JSON Editor */
-.json-editor .v-field {
-  background: rgba(0, 0, 0, 0.7) !important;
-  border: 2px solid rgba(255, 215, 0, 0.3) !important;
-  font-family: 'Courier New', monospace;
-}
-
-.json-editor .v-field:focus-within {
-  border-color: #FFD700 !important;
-}
-
-/* Cards */
-.github-card,
-.sync-card,
-.commits-card,
-.stat-card {
+.step-card,
+.stat-card,
+.category-card {
   background: rgba(255, 255, 255, 0.03) !important;
   border: 2px solid rgba(255, 215, 0, 0.3) !important;
   border-radius: 12px;
 }
 
-.stat-card {
+.step-card[disabled] {
+  opacity: 0.6;
+}
+
+.stat-card,
+.category-card {
   text-align: center;
   transition: all 0.3s ease;
 }
 
-.stat-card:hover {
+.stat-card:hover,
+.category-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 25px rgba(255, 215, 0, 0.2);
 }
 
-/* Table */
 .modern-table {
   background: rgba(255, 255, 255, 0.02) !important;
   border-radius: 10px;
@@ -722,8 +861,8 @@ export default {
   color: #ffffff !important;
 }
 
-/* Edit Dialog */
-.edit-dialog {
+.edit-dialog,
+.category-dialog {
   background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 50%, #1a1a1a 100%);
   border: 2px solid rgba(255, 215, 0, 0.6);
   border-radius: 12px;
@@ -734,7 +873,6 @@ export default {
   font-size: 14px !important;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .modern-admin-panel {
     margin: 8px;

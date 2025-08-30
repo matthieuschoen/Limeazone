@@ -129,20 +129,22 @@
     </v-row>
 
     <AdminPanel v-model="showAdmin" :items="items" @close="showAdmin = false" @add-item="addItem" @edit-item="editItem"
-      @delete-item="deleteItem" />
+      @delete-item="deleteItem" @switch-to-supabase="switchToSupabase" @refresh-items="refreshItems"
+      @categories-updated="onCategoriesUpdated" />
   </v-container>
 </template>
 
 <script>
+import { itemsService, categoriesService } from '../services/database.js'
 import ItemCard from './ItemCard.vue'
-import AdminPanel from './CadrePanel.vue'
+import CadrePanel from './CadrePanel.vue'
 import ModernAdminPanel from './ModernAdminPanel.vue'
 
 export default {
   name: 'ShopGrid',
   components: {
     ItemCard,
-    AdminPanel: ModernAdminPanel // Utiliser le nouveau panneau moderne
+    AdminPanel: ModernAdminPanel
   },
   emits: ['add-to-cart'],
   data() {
@@ -151,13 +153,14 @@ export default {
       isAdmin: false,
       adminkey: 'RenforcedConcretewithLime',
       items: [],
+      useSupabase: false,
 
       // Filtres
       searchQuery: '',
       selectedRarity: [],
       priceRange: [0, 1000],
 
-      // Options de rareté
+      // Options de rareté - GARDEZ LES VALEURS PAR DÉFAUT
       rarityFilters: [
         { label: 'Refill', value: 'Refill', color: 'grey', icon: '⚪' },
         { label: 'Machines', value: 'Machines', color: 'green', icon: '🟢' },
@@ -167,10 +170,10 @@ export default {
         { label: 'Edora', value: 'Edora', color: 'red', icon: '🔴' },
         { label: 'Autres', value: 'Autres', color: 'cyan', icon: '🔵' },
         { label: 'Consommables', value: 'Consommables', color: 'lime', icon: '🟢' },
-        { label: 'Alchimie', value: 'Alchimie', color: 'pink', icon: '🧪' },        // ← Nouveau
-        { label: 'Minerais', value: 'Minerais', color: 'brown', icon: '⛏️' },      // ← Nouveau
-        { label: 'Livres', value: 'Livres', color: 'indigo', icon: '📚' },         // ← Nouveau
-        { label: 'Missiles', value: 'Missiles', color: 'deep-orange', icon: '🚀' }  // ← Nouveau
+        { label: 'Alchimie', value: 'Alchimie', color: 'pink', icon: '🧪' },
+        { label: 'Minerais', value: 'Minerais', color: 'brown', icon: '⛏️' },
+        { label: 'Livres', value: 'Livres', color: 'indigo', icon: '📚' },
+        { label: 'Missiles', value: 'Missiles', color: 'deep-orange', icon: '🚀' }
       ]
     }
   },
@@ -225,6 +228,14 @@ export default {
     }
   },
   async mounted() {
+    // Vérifier si on doit utiliser Supabase
+    this.useSupabase = localStorage.getItem('use-supabase') === 'true'
+
+    // Charger les catégories SEULEMENT si on utilise Supabase
+    if (this.useSupabase) {
+      await this.loadCategories()
+    }
+
     await this.loadItems()
     this.checkAdminAccess()
   },
@@ -234,15 +245,40 @@ export default {
       this.selectedRarity = []
       this.priceRange = [this.minPrice, this.maxPrice]
     },
+    openAdminPanel() {
+      this.showAdmin = true
+    },
+
+    // Méthode pour gérer l'ajout au panier depuis les cards
+    handleAddToCart(data) {
+      this.$emit('add-to-cart', data)
+    },
 
     async loadItems() {
+      if (this.useSupabase) {
+        // Utiliser Supabase
+        try {
+          this.items = await itemsService.getAll()
+          console.log(`✅ ${this.items.length} items chargés depuis Supabase`)
+        } catch (error) {
+          console.error('❌ Erreur Supabase, fallback vers GitHub:', error)
+          await this.loadFromGitHub()
+        }
+      } else {
+        // Utiliser GitHub (système actuel)
+        await this.loadFromGitHub()
+      }
+    },
+
+    async loadFromGitHub() {
       try {
         const response = await fetch('https://raw.githubusercontent.com/matthieuschoen/limeazone-data/main/items.json')
         const publicItems = await response.json()
         const localItems = JSON.parse(localStorage.getItem('minecraft-shop-items') || '[]')
         this.items = this.mergeItems(publicItems, localItems)
+        console.log(`✅ ${this.items.length} items chargés depuis GitHub`)
       } catch (error) {
-        console.error('Erreur chargement items:', error)
+        console.error('❌ Erreur GitHub:', error)
         this.loadItemsFromLocal()
       }
     },
@@ -271,6 +307,34 @@ export default {
       return merged
     },
 
+    // Nouvelle méthode pour charger les catégories (SEULEMENT pour Supabase)
+    async loadCategories() {
+      try {
+        const categories = await categoriesService.getAll()
+
+        // Mettre à jour rarityFilters avec les catégories de Supabase
+        this.rarityFilters = categories.map(cat => ({
+          label: cat.name,
+          value: cat.name,
+          color: cat.color,
+          icon: cat.icon
+        }))
+
+        console.log(`✅ ${categories.length} catégories chargées depuis Supabase`)
+      } catch (error) {
+        console.error('Erreur chargement catégories:', error)
+        // Garder les catégories par défaut en cas d'erreur
+      }
+    },
+
+    // Méthode pour gérer la mise à jour des catégories depuis le panel admin
+    async onCategoriesUpdated() {
+      if (this.useSupabase) {
+        await this.loadCategories()
+      }
+    },
+
+    // Méthodes pour l'admin panel
     addItem(item) {
       this.items.push(item)
       this.saveItems()
@@ -313,6 +377,17 @@ export default {
       alert('📁 Nouveau fichier items.json généré ! Remplacez le fichier dans public/items.json et redéployez.')
     },
 
+    switchToSupabase() {
+      this.useSupabase = true
+      localStorage.setItem('use-supabase', 'true')
+      this.loadCategories() // Charger les catégories depuis Supabase
+      this.loadItems() // Recharger depuis Supabase
+    },
+
+    refreshItems() {
+      this.loadItems()
+    },
+
     checkAdminAccess() {
       const urlParams = new URLSearchParams(window.location.search)
       const adminParam = urlParams.get('Concrete')
@@ -323,17 +398,9 @@ export default {
       } else {
         this.isAdmin = sessionStorage.getItem('adminAccess') === 'true'
       }
-    },
-    openAdminPanel() {
-      if (!this.isAdmin) {
-        alert('🔒 Accès refusé ! Vous n\'avez pas les permissions administrateur.')
-        return
-      }
-      this.showAdmin = true
     }
   }
 }
-
 </script>
 
 <style scoped>

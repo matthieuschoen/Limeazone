@@ -1,16 +1,12 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  base: '/', // Remplacez par le nom de votre repo GitHub
-  plugins: [
-    vue({
-      template: { transformAssetUrls }
-    }),
-    vuetify({
-      autoImport: true,
-    }),
-  ],
-  define: { 'process.env': {} },
+  plugins: [vue()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  }
 })
