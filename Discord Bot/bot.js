@@ -21,7 +21,7 @@ client.once('ready', () => {
 
 // Commande admin pour fermer une commande
 client.on('messageCreate', async message => {
-    if (message.content === '!fermer-commande' && 
+    if (message.content === '!close' && 
         message.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
         
         const channel = message.channel;
