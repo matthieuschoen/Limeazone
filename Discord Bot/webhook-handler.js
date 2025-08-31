@@ -62,6 +62,15 @@ async function createOrder(cartItems, discordUsername, customerInfo = {}) {
                     PermissionFlagsBits.ReadMessageHistory
                 ],
             }] : []),
+            {
+                id: '1397013643102654605', // ID du rôle admin
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.ManageMessages
+                ]
+            }
         ],
     });
 
