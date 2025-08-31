@@ -16,26 +16,69 @@ async function createOrder(cartItems, discordUsername, customerInfo = {}) {
         throw new Error('Serveur Discord introuvable');
     }
 
-    // Trouver l'utilisateur par son username
     let targetUser = null;
     try {
-        // Chercher par username#discriminator ou juste username
+        console.log(`🔍 Recherche de l'utilisateur: "${discordUsername}"`);
+
+        // 1. Chercher par username#discriminator exact (format ancien)
         targetUser = guild.members.cache.find(member =>
-            member.user.tag === discordUsername ||
-            member.user.username === discordUsername ||
-            member.displayName === discordUsername
+            member.user.tag === discordUsername
         );
 
         if (!targetUser) {
-            // Essayer de chercher par ID si c'est un ID Discord
+            // 2. Chercher par username seul (format nouveau Discord)
+            targetUser = guild.members.cache.find(member =>
+                member.user.username.toLowerCase() === discordUsername.toLowerCase()
+            );
+        }
+
+        if (!targetUser) {
+            // 3. Chercher par display name/nickname
+            targetUser = guild.members.cache.find(member =>
+                member.displayName.toLowerCase() === discordUsername.toLowerCase()
+            );
+        }
+
+        if (!targetUser) {
+            // 4. Chercher par ID si c'est un nombre
             if (/^\d+$/.test(discordUsername)) {
+                console.log(`🔍 Tentative de recherche par ID: ${discordUsername}`);
                 targetUser = await guild.members.fetch(discordUsername);
             }
         }
-    } catch (error) {
-        console.log('Utilisateur non trouvé:', discordUsername);
-    }
 
+        if (!targetUser) {
+            // 5. Recherche partielle dans le cache (au cas où)
+            console.log('🔍 Recherche partielle...');
+            targetUser = guild.members.cache.find(member =>
+                member.user.username.toLowerCase().includes(discordUsername.toLowerCase()) ||
+                member.displayName.toLowerCase().includes(discordUsername.toLowerCase())
+            );
+        }
+
+        if (!targetUser) {
+            // 6. Forcer le fetch de tous les membres (si pas en cache)
+            console.log('🔍 Fetch de tous les membres...');
+            await guild.members.fetch();
+
+            targetUser = guild.members.cache.find(member =>
+                member.user.username.toLowerCase() === discordUsername.toLowerCase() ||
+                member.displayName.toLowerCase() === discordUsername.toLowerCase()
+            );
+        }
+
+        if (targetUser) {
+            console.log(`✅ Utilisateur trouvé: ${targetUser.displayName} (${targetUser.user.username})`);
+        } else {
+            console.log(`❌ Utilisateur "${discordUsername}" non trouvé sur le serveur`);
+            console.log('👥 Membres disponibles:');
+            guild.members.cache.forEach(member => {
+                console.log(`  - ${member.displayName} (${member.user.username})`);
+            });
+        }
+    } catch (error) {
+        console.log(`❌ Erreur lors de la recherche: ${error.message}`);
+    }
     // Calculer le total
     const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
