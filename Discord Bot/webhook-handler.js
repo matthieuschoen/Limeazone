@@ -185,7 +185,7 @@ async function createOrder(cartItems, discordUsername, customerInfo = {}) {
             channel.name === 'admin' ||
             channel.name === 'logs'
         );
-    
+
         if (adminChannel) {
             const adminNotificationEmbed = new EmbedBuilder()
                 .setColor('#FF6B35')
@@ -199,25 +199,25 @@ async function createOrder(cartItems, discordUsername, customerInfo = {}) {
                 )
                 .setTimestamp()
                 .setThumbnail('https://i.imgur.com/DinoSFu.png');
-    
+
             await adminChannel.send({
-                content: '🚨 **NOUVELLE COMMANDE** 🚨',
+                content: '🚨 @here **NOUVELLE COMMANDE** 🚨',
                 embeds: [adminNotificationEmbed]
             });
-    
+
             console.log(`✅ Notification envoyée dans #${adminChannel.name}`);
         } else {
             console.log('❌ Aucun channel admin trouvé pour les notifications');
-            
+
             // Fallback: notifier dans le channel général
             const generalChannel = guild.channels.cache.find(channel =>
-                channel.name === 'general' || 
+                channel.name === 'general' ||
                 channel.name === 'général' ||
                 channel.type === ChannelType.GuildText
             );
-            
+
             if (generalChannel) {
-                await generalChannel.send(`🔔 **Nouvelle commande:** ${totalPrice} coins - Channel: <#${privateChannel.id}>`);
+                await generalChannel.send(`🔔 @here **Nouvelle commande:** ${totalPrice} coins - Channel: <#${privateChannel.id}>`);
             }
         }
     } catch (error) {
