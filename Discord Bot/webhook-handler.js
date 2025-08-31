@@ -178,49 +178,50 @@ async function createOrder(cartItems, discordUsername, customerInfo = {}) {
     });
 
     // Notification pour les admins
-    const adminChannel = guild.channels.cache.find(channel =>
-        channel.name === 'commandes-admin' ||
-        channel.name === 'admin' ||
-        channel.name === 'staff'
-    );
-
-    console.log(`🔍 Recherche channel admin...`);
-    console.log(`📋 Channels disponibles:`, guild.channels.cache.map(c => c.name).join(', '));
-
-    if (adminChannel) {
-        console.log(`✅ Channel admin trouvé: ${adminChannel.name} (Type: ${adminChannel.type})`);
-
-        try {
-            // Vérifier que c'est bien un channel texte
-            if (adminChannel.isTextBased && adminChannel.isTextBased()) {
-                const adminNotif = new EmbedBuilder()
-                    .setColor('#FFA500')
-                    .setTitle('🔔 Nouvelle Commande Site Web')
-                    .addFields(
-                        { name: 'Client', value: discordUsername, inline: true },
-                        { name: 'Channel', value: `${privateChannel}`, inline: true },
-                        { name: 'Total', value: `${totalPrice} coins`, inline: true },
-                        { name: 'Articles', value: `${totalItems} item(s)`, inline: true },
-                        { name: 'Item(s)', value: `${cartItems.map(item => item.name).join(', ')}` }
-                    )
-                    .setTimestamp();
-
-                await adminChannel.send({
-                    content: '@here Nouvelle commande automatique!',
-                    embeds: [adminNotif]
-                });
-
-                console.log(`📢 Notification admin envoyée!`);
-            } else {
-                console.log(`⚠️ Le channel ${adminChannel.name} n'est pas un channel texte`);
+    try {
+        const adminChannel = guild.channels.cache.find(channel =>
+            channel.name === 'commandes-admin' ||
+            channel.name === 'notifications-shop' ||
+            channel.name === 'admin' ||
+            channel.name === 'logs'
+        );
+    
+        if (adminChannel) {
+            const adminNotificationEmbed = new EmbedBuilder()
+                .setColor('#FF6B35')
+                .setTitle('🔔 Nouvelle Commande Reçue!')
+                .setDescription(`Une nouvelle commande a été créée depuis le site web.`)
+                .addFields(
+                    { name: '👤 Client', value: targetUser ? `<@${targetUser.id}>` : `**${discordUsername}** (non trouvé)`, inline: true },
+                    { name: '💰 Total', value: `**${totalPrice} coins**`, inline: true },
+                    { name: '📦 Items', value: `**${totalItems} article(s)**`, inline: true },
+                    { name: '🔗 Channel', value: `<#${privateChannel.id}>`, inline: false }
+                )
+                .setTimestamp()
+                .setThumbnail('https://i.imgur.com/DinoSFu.png');
+    
+            await adminChannel.send({
+                content: '🚨 **NOUVELLE COMMANDE** 🚨',
+                embeds: [adminNotificationEmbed]
+            });
+    
+            console.log(`✅ Notification envoyée dans #${adminChannel.name}`);
+        } else {
+            console.log('❌ Aucun channel admin trouvé pour les notifications');
+            
+            // Fallback: notifier dans le channel général
+            const generalChannel = guild.channels.cache.find(channel =>
+                channel.name === 'general' || 
+                channel.name === 'général' ||
+                channel.type === ChannelType.GuildText
+            );
+            
+            if (generalChannel) {
+                await generalChannel.send(`🔔 **Nouvelle commande:** ${totalPrice} coins - Channel: <#${privateChannel.id}>`);
             }
-        } catch (error) {
-            console.log(`❌ Erreur envoi notification admin: ${error.message}`);
-            // Ne pas faire planter le processus, continuer quand même
         }
-    } else {
-        console.log(`⚠️ Aucun channel admin trouvé`);
-        console.log(`💡 Channels disponibles: ${guild.channels.cache.map(c => c.name).join(', ')}`);
+    } catch (error) {
+        console.error('❌ Erreur notification admin:', error);
     }
 
     console.log(`✅ Commande créée: ${channelName} pour ${discordUsername}`);
