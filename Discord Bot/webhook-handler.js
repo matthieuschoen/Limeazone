@@ -360,14 +360,6 @@ async function createCustomRequest(requestData) {
         ],
     });
 
-    // Créer l'embed de demande
-    const urgencyEmoji = {
-        'Low': '🐌',
-        'Normal': '⚡',
-        'High': '🔥',
-        'Critical': '🚨'
-    };
-
     const requestEmbed = new EmbedBuilder()
         .setColor('#FF9800')
         .setTitle('📝 Demande d\'Item Personnalisé')
@@ -378,7 +370,6 @@ async function createCustomRequest(requestData) {
             { name: '🔢 Quantité', value: `**${quantity}**`, inline: true },
             { name: '📝 Description', value: description || 'Aucune description', inline: false },
             { name: '💰 Budget indicatif', value: budget ? `**${budget} coins**` : 'Non spécifié', inline: true },
-            { name: '⏰ Urgence', value: `${urgencyEmoji[urgency]} **${urgency}**`, inline: true },
             { name: '📅 Demandé le', value: `<t:${Math.floor(new Date(timestamp).getTime() / 1000)}:F>`, inline: true }
         )
         .setThumbnail('https://i.imgur.com/DinoSFu.png')
