@@ -85,7 +85,31 @@ async function createOrder(cartItems, discordUsername, customerInfo = {}) {
 
     // Créer le channel privé
     const category = guild.channels.cache.get(process.env.CATEGORY_ID);
-    const channelName = `commande-${Date.now()}`;
+    let channelName;
+    if (targetUser) {
+    // Si l'utilisateur est trouvé, utiliser son nom d'affichage
+    const cleanUsername = targetUser.displayName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')  // Remplacer caractères spéciaux par des tirets
+        .replace(/-+/g, '-')         // Supprimer les tirets multiples
+        .replace(/^-|-$/g, '');      // Supprimer les tirets en début/fin
+    
+    channelName = `commande-${cleanUsername}-${Date.now().toString().slice(-6)}`;
+} else {
+    // Si l'utilisateur n'est pas trouvé, utiliser le nom saisi
+    const cleanDiscordName = discordUsername
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    
+    channelName = `commande-${cleanDiscordName}-${Date.now().toString().slice(-6)}`;
+}
+
+// S'assurer que le nom fait moins de 100 caractères (limite Discord)
+if (channelName.length > 100) {
+    channelName = channelName.substring(0, 94) + Date.now().toString().slice(-6);
+}
 
     const privateChannel = await guild.channels.create({
         name: channelName,

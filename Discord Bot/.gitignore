@@ -20,3 +20,5 @@ Thumbs.db
 .vscode/
 .idea/
 *.iml
+
+google-credentials.json
