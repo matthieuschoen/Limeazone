@@ -149,8 +149,10 @@ async function registerSlashCommands(client) {
         new SlashCommandBuilder()
             .setName('close')
             .setDescription('Valider et fermer une commande en cours')
-            .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
-
+            // ❌ SUPPRIMEZ CETTE LIGNE QUI LIMITE AUX PERMISSIONS DISCORD :
+            // .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+        ,
+        
         new SlashCommandBuilder()
             .setName('profil')
             .setDescription('Voir vos statistiques de commandes')
@@ -177,21 +179,28 @@ async function registerSlashCommands(client) {
                     .setDescription('Message personnalisé (optionnel)')
                     .setRequired(false)
             )
-            .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+            // ❌ SUPPRIMEZ AUSSI CETTE LIGNE :
+            // .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
     ];
-
+    
     try {
         const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
-        console.log('🔄 Enregistrement des commandes slash...');
-
+        console.log('🔄 Suppression des anciennes commandes...');
+        // Supprimer toutes les commandes existantes
+        await rest.put(
+            Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID),
+            { body: [] }
+        );
+        
+        console.log('🔄 Enregistrement des nouvelles commandes...');
         await rest.put(
             Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID),
             { body: commands }
         );
-
-        console.log('✅ Commandes slash enregistrées avec succès!');
-        console.log('📋 Commandes disponibles: /close, /profil, /top');
+        
+        console.log('✅ Commandes slash mises à jour avec succès!');
+        console.log('📋 Commandes disponibles: /close, /profil, /top, /ping');
         return true;
     } catch (error) {
         console.error('❌ Erreur lors de l\'enregistrement des commandes:', error);
