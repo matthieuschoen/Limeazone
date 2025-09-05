@@ -40,6 +40,8 @@ async function handleCloseCommand(interaction) {
         return;
     }
 
+
+
     // Extraire les infos du channel pour mettre à jour les stats
     try {
         // Récupérer les messages du channel pour trouver la commande

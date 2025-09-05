@@ -258,4 +258,182 @@ if (channelName.length > 100) {
     };
 }
 
-module.exports = { createOrder, setClient };
+// Fonction pour créer une demande personnalisée
+async function createCustomRequest(requestData) {
+    if (!discordClient) {
+        throw new Error('Bot Discord non initialisé');
+    }
+
+    const guild = discordClient.guilds.cache.get(process.env.GUILD_ID);
+    if (!guild) {
+        throw new Error('Serveur Discord introuvable');
+    }
+
+    const { itemName, description, quantity, budget, urgency, discordUsername, timestamp } = requestData;
+
+    // Chercher l'utilisateur Discord
+    let targetUser = null;
+    try {
+        console.log(`🔍 Recherche de l'utilisateur: "${discordUsername}"`);
+        
+        targetUser = guild.members.cache.find(member =>
+            member.user.username.toLowerCase() === discordUsername.toLowerCase() ||
+            member.displayName.toLowerCase() === discordUsername.toLowerCase()
+        );
+
+        if (!targetUser && /^\d+$/.test(discordUsername)) {
+            targetUser = await guild.members.fetch(discordUsername);
+        }
+
+        if (!targetUser) {
+            await guild.members.fetch();
+            targetUser = guild.members.cache.find(member =>
+                member.user.username.toLowerCase() === discordUsername.toLowerCase() ||
+                member.displayName.toLowerCase() === discordUsername.toLowerCase()
+            );
+        }
+    } catch (error) {
+        console.log(`❌ Erreur recherche utilisateur: ${error.message}`);
+    }
+
+    // Créer le channel de demande
+    const category = guild.channels.cache.get(process.env.CATEGORY_ID);
+    
+    let channelName;
+    if (targetUser) {
+        const cleanUsername = targetUser.displayName
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+        
+        channelName = `demande-${cleanUsername}-${Date.now().toString().slice(-6)}`;
+    } else {
+        const cleanDiscordName = discordUsername
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+        
+        channelName = `demande-${cleanDiscordName}-${Date.now().toString().slice(-6)}`;
+    }
+
+    if (channelName.length > 100) {
+        channelName = channelName.substring(0, 94) + Date.now().toString().slice(-6);
+    }
+
+    const requestChannel = await guild.channels.create({
+        name: channelName,
+        type: ChannelType.GuildText,
+        parent: category,
+        permissionOverwrites: [
+            {
+                id: guild.roles.everyone,
+                deny: [PermissionFlagsBits.ViewChannel],
+            },
+            ...(targetUser ? [{
+                id: targetUser.id,
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory
+                ],
+            }] : []),
+            {
+                id: '1397013643102654605',
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.ManageMessages
+                ]
+            },
+            {
+                id: '1397015527117033482',
+                allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.ManageMessages
+                ]
+            }
+        ],
+    });
+
+    // Créer l'embed de demande
+    const urgencyEmoji = {
+        'Low': '🐌',
+        'Normal': '⚡',
+        'High': '🔥',
+        'Critical': '🚨'
+    };
+
+    const requestEmbed = new EmbedBuilder()
+        .setColor('#FF9800')
+        .setTitle('📝 Demande d\'Item Personnalisé')
+        .setDescription(`Nouvelle demande depuis le site web Limeazone`)
+        .addFields(
+            { name: '👤 Client Discord', value: targetUser ? `<@${targetUser.id}>` : `**${discordUsername}** (non trouvé)`, inline: true },
+            { name: '📦 Item demandé', value: `**${itemName}**`, inline: true },
+            { name: '🔢 Quantité', value: `**${quantity}**`, inline: true },
+            { name: '📝 Description', value: description || 'Aucune description', inline: false },
+            { name: '💰 Budget indicatif', value: budget ? `**${budget} coins**` : 'Non spécifié', inline: true },
+            { name: '⏰ Urgence', value: `${urgencyEmoji[urgency]} **${urgency}**`, inline: true },
+            { name: '📅 Demandé le', value: `<t:${Math.floor(new Date(timestamp).getTime() / 1000)}:F>`, inline: true }
+        )
+        .setThumbnail('https://i.imgur.com/DinoSFu.png')
+        .setTimestamp()
+        .setFooter({ text: 'Demande personnalisée Limeazone', iconURL: 'https://i.imgur.com/DinoSFu.png' });
+
+    // Message dans le channel
+    const welcomeMessage = targetUser
+        ? `📝 Salut ${targetUser}! Votre demande d'item personnalisé a été reçue.`
+        : `📝 Demande d'item reçue pour **${discordUsername}** (utilisateur non trouvé sur ce serveur)`;
+
+    await requestChannel.send({
+        content: welcomeMessage,
+        embeds: [requestEmbed]
+    });
+
+    // Notification pour les admins
+    try {
+        const adminChannel = guild.channels.cache.find(channel =>
+            channel.name === 'commandes-admin',
+        );
+
+        if (adminChannel) {
+            const adminNotificationEmbed = new EmbedBuilder()
+                .setColor('#FF9800')
+                .setTitle('📝 Nouvelle Demande d\'Item!')
+                .setDescription(`Une demande d'item personnalisé a été reçue.`)
+                .addFields(
+                    { name: '👤 Client', value: targetUser ? `<@${targetUser.id}>` : `**${discordUsername}** (non trouvé)`, inline: true },
+                    { name: '📦 Item', value: `**${itemName}**`, inline: true },
+                    { name: '⏰ Urgence', value: `${urgencyEmoji[urgency]} **${urgency}**`, inline: true },
+                    { name: '🔗 Channel', value: `<#${requestChannel.id}>`, inline: false }
+                )
+                .setTimestamp()
+                .setThumbnail('https://i.imgur.com/DinoSFu.png');
+
+            await adminChannel.send({
+                content: '📝 @here **NOUVELLE DEMANDE D\'ITEM** 📝',
+                embeds: [adminNotificationEmbed]
+            });
+
+            console.log(`✅ Notification admin envoyée`);
+        }
+    } catch (error) {
+        console.error('❌ Erreur notification admin:', error);
+    }
+
+    console.log(`✅ Demande créée: ${channelName} pour ${discordUsername}`);
+
+    return {
+        success: true,
+        channelId: requestChannel.id,
+        channelName: channelName,
+        message: `Demande créée avec succès. Channel: ${channelName}`
+    };
+}
+
+module.exports = { createOrder, setClient, createCustomRequest };

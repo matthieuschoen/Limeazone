@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const { createOrder } = require('./webhook-handler');
+const { createOrder, createCustomRequest } = require('./webhook-handler');
 const fetch = require('node-fetch');
 require('dotenv').config();
 
@@ -22,6 +22,26 @@ app.get('/', (req, res) => {
         timestamp: new Date().toISOString() 
     });
 });
+
+function waitForBot(timeout = 10000) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        
+        const checkBot = () => {
+            const client = getClient();
+            if (client && client.isReady()) {
+                resolve(client);
+            } else if (Date.now() - startTime > timeout) {
+                reject(new Error('Timeout: Bot non prêt'));
+            } else {
+                setTimeout(checkBot, 100);
+            }
+        };
+        
+        checkBot();
+    });
+}
+
 
 // Webhook pour recevoir les commandes du site
 app.post('/api/order', async (req, res) => {
@@ -45,6 +65,45 @@ app.post('/api/order', async (req, res) => {
 
     } catch (error) {
         console.error('Erreur webhook:', error);
+        res.status(500).json({ 
+            error: 'Erreur interne du serveur',
+            details: error.message 
+        });
+    }
+});
+
+// Webhook pour recevoir les demandes personnalisées
+app.post('/api/request', async (req, res) => {
+    try {
+        console.log('📨 Nouvelle demande personnalisée reçue:', req.body);
+        
+        const { itemName, description, quantity, budget, urgency, discordUsername, timestamp } = req.body;
+        
+        if (!itemName || !discordUsername || !quantity) {
+            return res.status(400).json({ 
+                error: 'Données manquantes (itemName, discordUsername, quantity requis)' 
+            });
+        }
+
+        // Traiter la demande via Discord
+        const result = await createCustomRequest({
+            itemName,
+            description,
+            quantity,
+            budget,
+            urgency,
+            discordUsername,
+            timestamp
+        });
+        
+        res.json({ 
+            success: true, 
+            message: 'Demande créée avec succès',
+            channelId: result.channelId 
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur webhook demande:', error);
         res.status(500).json({ 
             error: 'Erreur interne du serveur',
             details: error.message 

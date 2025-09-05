@@ -128,6 +128,8 @@
       </v-col>
     </v-row>
 
+    <RequestModal />
+
     <AdminPanel v-model="showAdmin" :items="items" @close="showAdmin = false" @add-item="addItem" @edit-item="editItem"
       @delete-item="deleteItem" @switch-to-supabase="switchToSupabase" @refresh-items="refreshItems"
       @categories-updated="onCategoriesUpdated" />
@@ -139,12 +141,14 @@ import { itemsService, categoriesService } from '../services/database.js'
 import ItemCard from './ItemCard.vue'
 import CadrePanel from './CadrePanel.vue'
 import ModernAdminPanel from './ModernAdminPanel.vue'
+import RequestModal from './RequestModal.vue'
 
 export default {
   name: 'ShopGrid',
   components: {
     ItemCard,
-    AdminPanel: ModernAdminPanel
+    AdminPanel: ModernAdminPanel,
+    RequestModal
   },
   emits: ['add-to-cart'],
   data() {
