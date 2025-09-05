@@ -3,7 +3,6 @@ const path = require('path');
 
 // Configuration
 const SHEET_ID = '1gn6ClTe_Tq-rH4YIDMZ5KxalN10gVlLElIWo_CJLgas';
-const CREDENTIALS_PATH = path.join(__dirname, '../google-credentials.json');
 
 // Initialiser l'authentification
 let auth = null;
@@ -11,12 +10,27 @@ let sheets = null;
 
 async function initializeAuth() {
     try {
+        let credentials;
+        
+        // Vérifier si on est en production (Render) ou local
+        if (process.env.GOOGLE_CREDENTIALS) {
+            // Production : utiliser la variable d'environnement
+            console.log('🔑 Utilisation des credentials depuis les variables d\'environnement');
+            credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+        } else {
+            // Local : utiliser le fichier
+            console.log('🔑 Utilisation des credentials depuis le fichier local');
+            const CREDENTIALS_PATH = path.join(__dirname, '../google-credentials.json');
+            credentials = require(CREDENTIALS_PATH);
+        }
+        
         auth = new google.auth.GoogleAuth({
-            keyFile: CREDENTIALS_PATH,
+            credentials: credentials,
             scopes: ['https://www.googleapis.com/auth/spreadsheets']
         });
         
         sheets = google.sheets({ version: 'v4', auth });
+        console.log('✅ Authentification Google Sheets initialisée');
         return true;
     } catch (error) {
         console.error('❌ Erreur initialisation auth:', error);
@@ -192,11 +206,10 @@ async function getTopUsers(limit = 10) {
     }
 }
 
-// Ajoutez getTopUsers aux exports
 module.exports = {
     testConnection,
     getUserStats,
     updateUserStats,
-    getTopUsers,  // ← Nouveau
+    getTopUsers,
     initializeAuth
 };
