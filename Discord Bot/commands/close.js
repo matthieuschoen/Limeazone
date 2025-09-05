@@ -9,9 +9,9 @@ const { handlePingCommand } = require('./ping');
 async function handleCloseCommand(interaction) {
     // ⚡ Defer immédiatement pour éviter l'expiration
     await interaction.deferReply();
-    
+
     const channel = interaction.channel;
-    
+
     // Vérifier que c'est un channel de commande
     if (!channel.name.startsWith('commande-')) {
         await interaction.editReply({
@@ -19,45 +19,53 @@ async function handleCloseCommand(interaction) {
         });
         return;
     }
-    
+
     // Vérifier les permissions
-    const hasPermission = interaction.member.permissions.has(PermissionFlagsBits.ManageChannels) ||
-                         interaction.member.roles.cache.has('1397013643102654605') ||
-                         interaction.member.roles.cache.has('1397015527117033482');
-    
+    const hasManageChannels = interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
+    const hasAdminRole1 = interaction.member.roles.cache.has('1397013643102654605');
+    const hasAdminRole2 = interaction.member.roles.cache.has('1397015527117033482');
+
+    console.log(`🔍 Permissions pour ${interaction.user.username}:`);
+    console.log(`   ManageChannels: ${hasManageChannels}`);
+    console.log(`   Role 1397013643102654605: ${hasAdminRole1}`);
+    console.log(`   Role 1397015527117033482: ${hasAdminRole2}`);
+    console.log(`   Roles utilisateur: ${interaction.member.roles.cache.map(r => `${r.name}(${r.id})`).join(', ')}`);
+
+    const hasPermission = hasManageChannels || hasAdminRole1 || hasAdminRole2;
+
     if (!hasPermission) {
         await interaction.editReply({
             content: '❌ Vous n\'avez pas les permissions pour fermer cette commande!'
         });
         return;
     }
-    
+
     // Extraire les infos du channel pour mettre à jour les stats
     try {
         // Récupérer les messages du channel pour trouver la commande
         const messages = await channel.messages.fetch({ limit: 10 });
-        const orderMessage = messages.find(msg => 
-            msg.embeds.length > 0 && 
-            msg.embeds[0].title && 
+        const orderMessage = messages.find(msg =>
+            msg.embeds.length > 0 &&
+            msg.embeds[0].title &&
             msg.embeds[0].title.includes('Nouvelle Commande')
         );
-        
+
         if (orderMessage && orderMessage.embeds[0]) {
             const embed = orderMessage.embeds[0];
             const clientField = embed.fields.find(field => field.name.includes('Client'));
             const totalField = embed.fields.find(field => field.name.includes('Total'));
-            
+
             if (clientField && totalField) {
                 // Extraire l'ID utilisateur du mention <@123456789>
                 const userMention = clientField.value.match(/<@(\d+)>/);
                 if (userMention) {
                     const userId = userMention[1];
                     const totalAmount = parseInt(totalField.value.replace(/\D/g, '')) || 0;
-                    
+
                     // Récupérer l'utilisateur pour son nom
                     const user = await interaction.guild.members.fetch(userId);
                     const username = user.displayName || user.user.username;
-                    
+
                     // Mettre à jour les stats
                     await updateUserStats(userId, username, totalAmount);
                     console.log(`📊 Stats mises à jour pour ${username}: +1 commande, +${totalAmount} coins`);
@@ -68,18 +76,18 @@ async function handleCloseCommand(interaction) {
         console.error('❌ Erreur mise à jour stats:', error);
         // Continue quand même la fermeture
     }
-    
+
     // ✅ UTILISER EDITREPLY (pas reply) car on a déjà fait deferReply()
     await interaction.editReply({
         content: '✅ **Commande validée et fermée!**\n' +
-                 '📊 Les statistiques du client ont été mises à jour.\n' +
-                 '🗑️ Channel supprimé dans 10 secondes.\n' +
-                 `🔧 Validée par: ${interaction.user.displayName}`
+            '📊 Les statistiques du client ont été mises à jour.\n' +
+            '🗑️ Channel supprimé dans 10 secondes.\n' +
+            `🔧 Validée par: ${interaction.user.displayName}`
     });
-    
+
     // Log de l'action
     console.log(`🔒 Commande ${channel.name} validée par ${interaction.user.username} (${interaction.user.id})`);
-    
+
     // Supprimer le channel après 10 secondes
     setTimeout(async () => {
         try {
